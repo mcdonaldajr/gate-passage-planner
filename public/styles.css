@@ -127,9 +127,9 @@ main {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(160px, 240px));
-  gap: 12px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(3, minmax(130px, 190px));
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 label {
@@ -171,7 +171,7 @@ select {
   border-radius: 6px;
   background: #fff;
   color: var(--ink);
-  padding: 9px 10px;
+  padding: 6px 8px;
 }
 
 .summary {
@@ -418,6 +418,12 @@ td {
   white-space: nowrap;
 }
 
+th {
+  max-width: 104px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
 td input {
   min-width: 130px;
   border: 1px solid transparent;
@@ -519,8 +525,6 @@ tr[data-rating="Unacceptable"] td:last-child {
     justify-content: flex-start;
   }
 
-  .controls,
-  .summary,
   .freshnessGrid,
   .constantsGrid,
   .hourViewGrid,
@@ -541,6 +545,10 @@ tr[data-rating="Unacceptable"] td:last-child {
   th,
   td {
     padding: 5px 6px;
+  }
+
+  th {
+    max-width: 88px;
   }
 
   td input {
