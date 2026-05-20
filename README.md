@@ -36,30 +36,39 @@ This starts the local server and opens Firefox at:
 http://127.0.0.1:4173
 ```
 
-## Read From An iPad On The Same Network
+By default, the launch script also listens on the boat/local Wi-Fi network and prints a LAN URL like:
 
-By default the app only listens on `127.0.0.1`, so it is private to the Lubuntu machine and an iPad cannot connect.
+```bash
+Local URL: http://127.0.0.1:4173
+LAN URL:   http://192.168.1.23:4173
+```
 
-To allow another device on your home/boat Wi-Fi to read it, start the LAN version:
+Open the LAN URL in Safari or Firefox on the iPad while it is connected to the same secure Wi-Fi network.
+
+To force local-only mode instead:
+
+```bash
+HOST=127.0.0.1 ./scripts/start-passage-planner.sh
+```
+
+The older explicit LAN helper still works, but is now just an alias:
 
 ```bash
 ./scripts/start-passage-planner-lan.sh
 ```
 
-The script prints a URL like:
+Example LAN URL:
 
 ```text
 http://192.168.1.23:4173
 ```
-
-Open that URL in Safari or Firefox on the iPad while it is connected to the same Wi-Fi network.
 
 Security notes:
 
 - The app has no login screen.
 - Anyone on the same network who knows the Lubuntu machine address and port can open it.
 - The UKHO key itself is not sent to the browser by `/api/settings`, but someone with access to the app can use the app to fetch tides.
-- Use LAN mode only on a trusted private network.
+- Use the default LAN mode only on a trusted private network, such as your secured boat Wi-Fi.
 - If Lubuntu's firewall is enabled, allow TCP port `4173` on your local network.
 
 Example firewall command:
