@@ -29,6 +29,7 @@ const locationConstantColumns = [
   { key: "ebbSet", label: "Ebb Set", type: "cardinal" },
   { key: "springPeakFlow", label: "Spring Peak Flow (kn)", type: "number" },
   { key: "neapPeakFlow", label: "Neap Peak Flow (kn)", type: "number" },
+  { key: "source", label: "Source", type: "text" },
   { key: "floodSpringAfter", label: "Flood Spring After HW", type: "duration" },
   { key: "floodNeapAfter", label: "Flood Neap After HW", type: "duration" },
   { key: "floodSpringSlack", label: "Flood Spring Slack", type: "duration" },
@@ -49,6 +50,7 @@ const locationConstants = {
     ebbSet: "E",
     springPeakFlow: "8.5",
     neapPeakFlow: "4.0",
+    source: "Existing app constants; spring rate agrees with Paddle Argyll",
     floodSpringAfter: "4:10:00",
     floodNeapAfter: "4:10:00",
     floodSpringSlack: "0:12:00",
@@ -66,6 +68,7 @@ const locationConstants = {
     ebbSet: "E",
     springPeakFlow: "7.0",
     neapPeakFlow: "3.5",
+    source: "Existing app constants; alternate Paddle Argyll spring rate is 6 kn",
     floodSpringAfter: "4:20:00",
     floodNeapAfter: "4:50:00",
     floodSpringSlack: "0:15:00",
@@ -79,10 +82,11 @@ const locationConstants = {
     location: "Dorus Mor",
     latitude: "56.047",
     longitude: "-5.576",
-    floodSet: "W",
-    ebbSet: "E",
+    floodSet: "NW",
+    ebbSet: "SE",
     springPeakFlow: "5.0",
     neapPeakFlow: "2.5",
+    source: "Existing app constants; alternate Paddle Argyll spring rate is 8 kn",
     floodSpringAfter: "3:30:00",
     floodNeapAfter: "4:15:00",
     floodSpringSlack: "0:15:00",
@@ -96,10 +100,11 @@ const locationConstants = {
     location: "Sound of Luing",
     latitude: "56.225",
     longitude: "-5.609",
-    floodSet: "W",
-    ebbSet: "E",
+    floodSet: "NW",
+    ebbSet: "SE",
     springPeakFlow: "7.0",
     neapPeakFlow: "3.5",
+    source: "Existing app constants; alternate Paddle Argyll spring rate is 4 kn",
     floodSpringAfter: "4:30:00",
     floodNeapAfter: "5:00:00",
     floodSpringSlack: "0:20:00",
@@ -108,6 +113,78 @@ const locationConstants = {
     ebbNeapAfter: "-1:30:00",
     ebbSpringSlack: "0:20:00",
     ebbNeapSlack: "0:50:00"
+  },
+  "Sound of Kerrera": {
+    location: "Sound of Kerrera",
+    latitude: "56.40000",
+    longitude: "-5.51667",
+    floodSet: "N",
+    ebbSet: "S",
+    springPeakFlow: "1.5",
+    neapPeakFlow: "",
+    source: "Paddle Argyll Kayak Trail spring rate/start times; Mindat coordinates",
+    floodSpringAfter: "4:30:00",
+    floodNeapAfter: "",
+    floodSpringSlack: "",
+    floodNeapSlack: "",
+    ebbSpringAfter: "-1:55:00",
+    ebbNeapAfter: "",
+    ebbSpringSlack: "",
+    ebbNeapSlack: ""
+  },
+  "Clachan Sound": {
+    location: "Clachan Sound",
+    latitude: "56.31772",
+    longitude: "-5.58281",
+    floodSet: "N",
+    ebbSet: "S",
+    springPeakFlow: "5.0",
+    neapPeakFlow: "",
+    source: "Paddle Argyll Kayak Trail spring rate/start times; Trove/HES coordinates",
+    floodSpringAfter: "5:55:00",
+    floodNeapAfter: "",
+    floodSpringSlack: "",
+    floodNeapSlack: "",
+    ebbSpringAfter: "-0:25:00",
+    ebbNeapAfter: "",
+    ebbSpringSlack: "",
+    ebbNeapSlack: ""
+  },
+  "Torsa": {
+    location: "Torsa",
+    latitude: "56.25722",
+    longitude: "-5.61667",
+    floodSet: "N",
+    ebbSet: "S",
+    springPeakFlow: "1.0",
+    neapPeakFlow: "",
+    source: "Paddle Argyll Kayak Trail spring rate/start times; Torsa coordinates",
+    floodSpringAfter: "4:15:00",
+    floodNeapAfter: "",
+    floodSpringSlack: "",
+    floodNeapSlack: "",
+    ebbSpringAfter: "-2:00:00",
+    ebbNeapAfter: "",
+    ebbSpringSlack: "",
+    ebbNeapSlack: ""
+  },
+  "Sound of Mull SE Entrance": {
+    location: "Sound of Mull SE Entrance",
+    latitude: "56.50033",
+    longitude: "-5.69159",
+    floodSet: "NW",
+    ebbSet: "SE",
+    springPeakFlow: "2.0",
+    neapPeakFlow: "",
+    source: "Seakayakphoto/UKRGB timing and spring rate; Canmore Rubha an Ridire coordinates",
+    floodSpringAfter: "-6:00:00",
+    floodNeapAfter: "",
+    floodSpringSlack: "",
+    floodNeapSlack: "",
+    ebbSpringAfter: "-0:45:00",
+    ebbNeapAfter: "",
+    ebbSpringSlack: "",
+    ebbNeapSlack: ""
   }
 };
 
@@ -1325,7 +1402,8 @@ function defaultLocationValues(name) {
     ebbSpringAfter: template.ebbSpringAfter || "0:00:00",
     ebbNeapAfter: template.ebbNeapAfter || "0:00:00",
     ebbSpringSlack: template.ebbSpringSlack || "0:15:00",
-    ebbNeapSlack: template.ebbNeapSlack || "0:40:00"
+    ebbNeapSlack: template.ebbNeapSlack || "0:40:00",
+    source: template.source || ""
   };
 }
 
@@ -1339,11 +1417,39 @@ function uniqueLocationName(baseName = "New Location") {
   return name;
 }
 
+function isLocationComplete(location) {
+  if (!location) return false;
+  const requiredFields = [
+    "latitude",
+    "longitude",
+    "floodSet",
+    "ebbSet",
+    "springPeakFlow",
+    "neapPeakFlow",
+    "floodSpringAfter",
+    "floodNeapAfter",
+    "floodSpringSlack",
+    "floodNeapSlack",
+    "ebbSpringAfter",
+    "ebbNeapAfter",
+    "ebbSpringSlack",
+    "ebbNeapSlack"
+  ];
+  return requiredFields.every((field) => String(location[field] ?? "").trim() !== "");
+}
+
 function syncGateOptions(selected = $("gate").value) {
   const gate = $("gate");
   const names = Object.keys(locationConstants);
-  gate.innerHTML = names.map((name) => `<option${name === selected ? " selected" : ""}>${escapeHtml(name)}</option>`).join("");
-  if (!locationConstants[gate.value]) gate.value = names[0] || "";
+  const completeNames = names.filter((name) => isLocationComplete(locationConstants[name]));
+  const selectedIsComplete = locationConstants[selected] && isLocationComplete(locationConstants[selected]);
+  const active = selectedIsComplete ? selected : (completeNames[0] || names[0] || "");
+  gate.innerHTML = names.map((name) => {
+    const complete = isLocationComplete(locationConstants[name]);
+    const label = complete ? name : `${name} (incomplete)`;
+    return `<option value="${escapeHtml(name)}"${name === active ? " selected" : ""}${complete ? "" : " disabled"}>${escapeHtml(label)}</option>`;
+  }).join("");
+  if (active) gate.value = active;
 }
 
 async function savePlannerSelection() {
@@ -1835,6 +1941,7 @@ $("locationTable").addEventListener("change", (event) => {
   if (!locationConstants[locationName]) return;
   locationConstants[locationName][key] = event.target.value.trim();
   if (key === "latitude" || key === "longitude") renderLocationConstantsTable();
+  syncGateOptions($("gate").value);
   rebuildTidesFromLocationConstants();
 });
 $("locationTable").addEventListener("click", (event) => {
