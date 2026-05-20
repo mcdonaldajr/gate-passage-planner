@@ -205,12 +205,13 @@ select {
 
 .freshnessGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, minmax(145px, 1fr));
   gap: 6px;
   margin: 0 0 8px;
 }
 
 .freshnessCard {
+  min-width: 0;
   border: 1px solid var(--line);
   border-left: 4px solid var(--water);
   background: #fff;
@@ -228,16 +229,22 @@ select {
 .freshnessCard span,
 .freshnessCard small {
   display: block;
+  overflow: hidden;
   color: var(--muted);
   font-size: 10px;
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .freshnessCard strong {
   display: block;
+  overflow: hidden;
   margin: 1px 0;
   font-size: 13px;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dataStatus {
@@ -525,11 +532,14 @@ tr[data-rating="Unacceptable"] td:last-child {
     justify-content: flex-start;
   }
 
-  .freshnessGrid,
   .constantsGrid,
   .hourViewGrid,
   .hourCards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .freshnessGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .safetyNotice {
