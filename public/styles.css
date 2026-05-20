@@ -375,6 +375,11 @@ h2 {
   background: #fff;
 }
 
+.planTableWrap {
+  overflow: visible;
+  max-height: none;
+}
+
 .inputTableWrap {
   max-height: calc(100vh - 250px);
 }
