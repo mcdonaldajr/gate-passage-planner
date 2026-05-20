@@ -290,6 +290,20 @@ h2 {
   min-width: 260px;
 }
 
+.hourPicker {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  min-width: min(100%, 520px);
+}
+
+.hourPicker button {
+  min-height: 42px;
+  padding: 0 12px;
+  touch-action: manipulation;
+}
+
 .hourViewGrid {
   display: grid;
   grid-template-columns: minmax(320px, 520px) minmax(280px, 1fr);

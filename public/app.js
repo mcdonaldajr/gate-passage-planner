@@ -208,6 +208,8 @@ let currentPlanRows = null;
 let currentWeatherMeta = null;
 let currentTideMeta = null;
 let currentTideEvents = null;
+let hourRepeatTimer = null;
+let hourRepeatDelayTimer = null;
 let appSettings = {
   selectedGate: "Cuan Sound",
   selectedHeading: "270",
@@ -1168,7 +1170,47 @@ function stepSelectedHour(delta) {
   const nextIndex = Math.max(0, Math.min(select.options.length - 1, select.selectedIndex + delta));
   if (nextIndex === select.selectedIndex) return;
   select.selectedIndex = nextIndex;
+  updateHourStepButtons();
   renderHourVisual();
+}
+
+function updateHourStepButtons() {
+  const select = $("hourSelect");
+  const previous = $("previousHour");
+  const next = $("nextHour");
+  if (!select || !previous || !next) return;
+  previous.disabled = select.selectedIndex <= 0;
+  next.disabled = select.selectedIndex < 0 || select.selectedIndex >= select.options.length - 1;
+}
+
+function stopHourRepeat() {
+  if (hourRepeatDelayTimer) clearTimeout(hourRepeatDelayTimer);
+  if (hourRepeatTimer) clearInterval(hourRepeatTimer);
+  hourRepeatDelayTimer = null;
+  hourRepeatTimer = null;
+}
+
+function startHourRepeat(delta) {
+  stopHourRepeat();
+  stepSelectedHour(delta);
+  hourRepeatDelayTimer = setTimeout(() => {
+    hourRepeatTimer = setInterval(() => stepSelectedHour(delta), 120);
+  }, 450);
+}
+
+function bindHourStepButton(id, delta) {
+  const button = $(id);
+  if (!button) return;
+  button.addEventListener("pointerdown", (event) => {
+    if (button.disabled) return;
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    startHourRepeat(delta);
+  });
+  button.addEventListener("pointerup", stopHourRepeat);
+  button.addEventListener("pointercancel", stopHourRepeat);
+  button.addEventListener("pointerleave", stopHourRepeat);
+  button.addEventListener("click", (event) => event.preventDefault());
 }
 
 function renderHourVisual() {
@@ -1181,6 +1223,7 @@ function renderHourVisual() {
   const idx = (name) => headers.indexOf(name);
   const row = getPlanRowBySelectedHour();
   if (!row) return;
+  updateHourStepButtons();
 
   const settings = settingsFromControls();
   const windSpeed = Number(row[idx("Wind (kn)")] || 0);
@@ -1802,7 +1845,12 @@ $("locationTable").addEventListener("click", (event) => {
 $("loadLocationConstants").addEventListener("click", loadLocationConstants);
 $("saveLocationConstants").addEventListener("click", saveLocationConstants);
 $("saveSettings").addEventListener("click", saveSettings);
-$("hourSelect").addEventListener("change", renderHourVisual);
+$("hourSelect").addEventListener("change", () => {
+  updateHourStepButtons();
+  renderHourVisual();
+});
+bindHourStepButton("previousHour", -1);
+bindHourStepButton("nextHour", 1);
 document.addEventListener("keydown", (event) => {
   if (!$("hourViewPanel").classList.contains("active")) return;
   if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;

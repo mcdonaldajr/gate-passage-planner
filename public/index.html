@@ -123,9 +123,13 @@
             <h2>Hour View</h2>
             <p>One-hour vector view of boat, tide, wind, wind waves, and swell. This planner remains untested and not for navigation.</p>
           </div>
-          <label class="hourSelectLabel">Hour
-            <select id="hourSelect"></select>
-          </label>
+          <div class="hourPicker">
+            <button id="previousHour" type="button" aria-label="Previous hour">Previous</button>
+            <label class="hourSelectLabel">Hour
+              <select id="hourSelect"></select>
+            </label>
+            <button id="nextHour" type="button" aria-label="Next hour">Next</button>
+          </div>
         </div>
         <section class="hourViewGrid" aria-label="Selected hour visual overview">
           <div class="vectorPanel">
