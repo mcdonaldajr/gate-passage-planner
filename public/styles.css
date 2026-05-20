@@ -405,7 +405,7 @@ h2 {
 
 table {
   width: 100%;
-  min-width: 1380px;
+  min-width: min(1380px, max-content);
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -509,7 +509,7 @@ tr[data-rating="Unacceptable"] td:last-child {
   font-weight: inherit;
 }
 
-@media (max-width: 840px) {
+@media (max-width: 1366px) {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
@@ -531,6 +531,26 @@ tr[data-rating="Unacceptable"] td:last-child {
   .safetyNotice {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  table {
+    min-width: max-content;
+    font-size: 12px;
+  }
+
+  th,
+  td {
+    padding: 5px 6px;
+  }
+
+  td input {
+    min-width: 88px;
+    padding: 3px 4px;
+  }
+
+  #planTable th:first-child,
+  #planTable td:first-child {
+    min-width: 118px;
   }
 }
 
