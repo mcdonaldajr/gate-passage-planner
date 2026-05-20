@@ -1,0 +1,12 @@
+node_modules/
+npm-debug.log*
+.DS_Store
+
+# Local secrets and provider cache
+data/app-settings.json
+data/cache/
+data/sample-passage.json
+
+# Local spreadsheet/source inspection scratch files
+inspect/
+*.xlsx
