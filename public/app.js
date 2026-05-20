@@ -257,6 +257,24 @@ const locationConstants = {
     ebbNeapAfter: "",
     ebbSpringSlack: "",
     ebbNeapSlack: ""
+  },
+  "Ardnamurchan Point": {
+    location: "Ardnamurchan Point",
+    latitude: "56.72556",
+    longitude: "-6.22583",
+    floodSet: "",
+    ebbSet: "",
+    springPeakFlow: "",
+    neapPeakFlow: "",
+    source: "British Place Names coordinates; no complete tidal stream timing/slack/neap source yet",
+    floodSpringAfter: "",
+    floodNeapAfter: "",
+    floodSpringSlack: "",
+    floodNeapSlack: "",
+    ebbSpringAfter: "",
+    ebbNeapAfter: "",
+    ebbSpringSlack: "",
+    ebbNeapSlack: ""
   }
 };
 
