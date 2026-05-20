@@ -381,6 +381,7 @@ let appSettings = {
   selectedGate: "Cuan Sound",
   selectedHeading: "270",
   selectedCrewCapability: "competent",
+  speed: "5",
   ukhoAccountEmail: "",
   obanMhws: "4.00",
   obanMhwn: "2.90",
@@ -1547,13 +1548,15 @@ async function savePlannerSelection() {
     appSettings.selectedGate = $("gate").value;
     appSettings.selectedHeading = $("heading").value;
     appSettings.selectedCrewCapability = $("crewCapability").value;
+    appSettings.speed = $("speed").value;
     await fetch("/api/settings", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         selectedGate: appSettings.selectedGate,
         selectedHeading: appSettings.selectedHeading,
-        selectedCrewCapability: appSettings.selectedCrewCapability
+        selectedCrewCapability: appSettings.selectedCrewCapability,
+        speed: appSettings.speed
       })
     });
   } catch {
@@ -1771,6 +1774,7 @@ async function loadSettings() {
     if (settings.selectedCrewCapability && [...$("crewCapability").options].some((option) => option.value === settings.selectedCrewCapability)) {
       $("crewCapability").value = settings.selectedCrewCapability;
     }
+    $("speed").value = settings.speed || appSettings.speed;
     $("obanMhws").value = settings.obanMhws || appSettings.obanMhws;
     $("obanMhwn").value = settings.obanMhwn || appSettings.obanMhwn;
     $("obanMlwn").value = settings.obanMlwn || appSettings.obanMlwn;
@@ -1798,6 +1802,7 @@ async function saveSettings() {
     const selectedGate = $("gate").value;
     const selectedHeading = $("heading").value;
     const selectedCrewCapability = $("crewCapability").value;
+    const speed = $("speed").value.trim();
     const calculationSettings = Object.fromEntries(calculationSettingIds.map((id) => [id, $(id).value.trim()]));
     const response = await fetch("/api/settings", {
       method: "POST",
@@ -1815,6 +1820,7 @@ async function saveSettings() {
         selectedGate,
         selectedHeading,
         selectedCrewCapability,
+        speed,
         ...calculationSettings
       })
     });
@@ -1829,6 +1835,7 @@ async function saveSettings() {
     if (settings.selectedGate && locationConstants[settings.selectedGate]) $("gate").value = settings.selectedGate;
     if (settings.selectedHeading) $("heading").value = settings.selectedHeading;
     if (settings.selectedCrewCapability) $("crewCapability").value = settings.selectedCrewCapability;
+    $("speed").value = settings.speed || speed;
     $("obanMhws").value = settings.obanMhws || obanMhws;
     $("obanMhwn").value = settings.obanMhwn || obanMhwn;
     $("obanMlwn").value = settings.obanMlwn || obanMlwn;
@@ -2006,6 +2013,7 @@ $("crewCapability").addEventListener("change", () => {
   savePlannerSelection();
   recalculateCurrentPlan();
 });
+$("speed").addEventListener("change", savePlannerSelection);
 for (const id of ["speed", "slack", "lwl", "displacement", ...calculationSettingIds]) {
   $(id).addEventListener("input", () => {
     renderComfortConstantsTable();

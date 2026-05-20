@@ -16,6 +16,7 @@ const defaultAppSettings = {
   selectedGate: "Cuan Sound",
   selectedHeading: "270",
   selectedCrewCapability: "competent",
+  speed: "5",
   ukhoAccountEmail: "",
   baseTideStationName: "Oban",
   baseTideStationId: "0372",

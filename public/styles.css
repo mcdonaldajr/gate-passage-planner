@@ -158,7 +158,7 @@ main {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(130px, 190px));
+  grid-template-columns: minmax(130px, 180px) minmax(82px, 120px) minmax(96px, 130px) minmax(150px, 190px);
   gap: 8px;
   margin-bottom: 8px;
 }

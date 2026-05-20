@@ -67,6 +67,9 @@
               <option value="337.5">NNW</option>
             </select>
           </label>
+          <label><span class="labelText">Yacht speed (kn)<span class="helpIcon" tabindex="0" aria-label="Assumed boat speed through the water before tide is applied. The planner combines this with the tidal stream to estimate speed over ground and course to steer." title="Assumed boat speed through the water before tide is applied. The planner combines this with the tidal stream to estimate speed over ground and course to steer.">?</span></span>
+            <input id="speed" type="number" value="5" min="1" max="12" step="0.1">
+          </label>
           <label>Crew capability
             <select id="crewCapability">
               <option value="family">Family with young children</option>
@@ -210,9 +213,6 @@
           </div>
         </div>
         <section class="constantsGrid" aria-label="Editable constants">
-          <label><span class="labelText">Yacht speed (kn)<span class="helpIcon" tabindex="0" aria-label="Assumed boat speed through the water before tide is applied. The planner combines this with the tidal stream to estimate speed over ground and course to steer." title="Assumed boat speed through the water before tide is applied. The planner combines this with the tidal stream to estimate speed over ground and course to steer.">?</span></span>
-            <input id="speed" type="number" value="5" min="1" max="12" step="0.1">
-          </label>
           <label><span class="labelText">Slack threshold (kn)<span class="helpIcon" tabindex="0" aria-label="Tide rates below this value are treated as slack water. Increase it to make the planner more conservative around weak streams." title="Tide rates below this value are treated as slack water. Increase it to make the planner more conservative around weak streams.">?</span></span>
             <input id="slack" type="number" value="1" min="0" max="4" step="0.1">
           </label>
