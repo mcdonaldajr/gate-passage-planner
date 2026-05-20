@@ -377,6 +377,8 @@ let currentTideMeta = null;
 let currentTideEvents = null;
 let hourRepeatTimer = null;
 let hourRepeatDelayTimer = null;
+const weatherRowsByGate = new Map();
+const weatherStatusByGate = new Map();
 let appSettings = {
   selectedGate: "Cuan Sound",
   selectedHeading: "270",
@@ -1163,7 +1165,7 @@ function updateFreshness() {
       ? `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}`
       : "No latitude/longitude set";
   }
-  renderFreshnessCard("weatherFreshness", currentWeatherMeta, "Weather");
+  renderFreshnessCard("weatherFreshness", weatherStatusByGate.get($("gate").value) || currentWeatherMeta, "Weather");
   renderFreshnessCard("tideFreshness", currentTideMeta, "Tide");
   const horizon = $("planningHorizon");
   if (!horizon || !currentPlanRows?.length || !currentTideRows?.length) return;
@@ -1909,10 +1911,11 @@ function settingsFromControls() {
 }
 
 async function loadWeatherForGate(settings, options = {}) {
+  const gate = settings.gate;
   try {
-    const location = locationConstants[settings.gate];
+    const location = locationConstants[gate];
     const params = new URLSearchParams({
-      location: settings.gate,
+      location: gate,
       lat: location.latitude,
       lon: location.longitude,
       days: "16",
@@ -1924,12 +1927,28 @@ async function loadWeatherForGate(settings, options = {}) {
     const payload = await response.json();
     const rows = weatherRowsFromApi(payload);
     if (!rows) throw new Error("Weather response did not contain hourly data");
-    currentWeatherMeta = payload.cache;
+    const meta = {
+      ...payload.cache,
+      location: gate,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      weatherDays: payload.weatherDays,
+      marineDays: payload.marineDays
+    };
+    weatherRowsByGate.set(gate, rows);
+    weatherStatusByGate.set(gate, meta);
+    currentWeatherMeta = meta;
     $("dataStatus").textContent = "";
     return rows;
   } catch (error) {
+    weatherRowsByGate.delete(gate);
+    weatherStatusByGate.set(gate, {
+      location: gate,
+      error: error.message,
+      fetchedAt: null
+    });
     currentWeatherMeta = null;
-    $("dataStatus").textContent = `Weather data was not loaded for ${settings.gate} (${error.message}).`;
+    $("dataStatus").textContent = `Weather data was not loaded for ${gate} (${error.message}).`;
     return null;
   }
 }
