@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-4173}"
 LOCAL_URL="http://127.0.0.1:${PORT}"
 LOG_DIR="$APP_DIR/data/logs"
 PID_FILE="$APP_DIR/data/passage-planner.pid"
-LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+LAN_IP=""
 DESKTOP_MODE=0
 
 if [ "${1:-}" = "--desktop" ]; then
   DESKTOP_MODE=1
 fi
 
-if [ -z "${LAN_IP:-}" ]; then
+if command -v hostname >/dev/null 2>&1; then
+  LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+fi
+
+if [ -z "${LAN_IP:-}" ] && command -v ip >/dev/null 2>&1; then
   LAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')"
+fi
+
+if [ -z "${LAN_IP:-}" ] && command -v ipconfig >/dev/null 2>&1; then
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)"
 fi
 
 if [ "$HOST" = "0.0.0.0" ] && [ -n "${LAN_IP:-}" ]; then

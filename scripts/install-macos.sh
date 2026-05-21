@@ -21,7 +21,30 @@ chmod +x "${APP_DIR}/scripts/start-passage-planner.sh"
 
 cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
-exec "${APP_DIR}/scripts/start-passage-planner.sh" --desktop
+set -euo pipefail
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:\${PATH:-}"
+LOG_DIR="\${HOME}/Library/Logs/Passage Planner"
+APP_DIR="${APP_DIR}"
+PORT="\${PORT:-4173}"
+HOST="\${HOST:-0.0.0.0}"
+LOCAL_URL="http://127.0.0.1:\${PORT}"
+PID_FILE="\$APP_DIR/data/passage-planner.pid"
+mkdir -p "\$LOG_DIR"
+exec >>"\$LOG_DIR/launcher.log" 2>&1
+echo "\$(date): launching Passage Planner"
+cd "\$APP_DIR"
+if [ ! -f "\$PID_FILE" ] || ! kill -0 "\$(cat "\$PID_FILE")" >/dev/null 2>&1; then
+  HOST="\$HOST" PORT="\$PORT" nohup npm start >>"\$LOG_DIR/server.log" 2>&1 &
+  echo "\$!" > "\$PID_FILE"
+fi
+for _ in {1..40}; do
+  if curl -fsS --max-time 1 "\$LOCAL_URL" >/dev/null 2>&1; then
+    open "\$LOCAL_URL"
+    exit 0
+  fi
+  sleep 0.25
+done
+open "\$LOCAL_URL"
 EOF
 
 chmod +x "$LAUNCHER"
