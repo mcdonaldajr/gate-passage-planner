@@ -8,6 +8,11 @@ LOCAL_URL="http://127.0.0.1:${PORT}"
 LOG_DIR="$APP_DIR/data/logs"
 PID_FILE="$APP_DIR/data/passage-planner.pid"
 LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+DESKTOP_MODE=0
+
+if [ "${1:-}" = "--desktop" ]; then
+  DESKTOP_MODE=1
+fi
 
 if [ -z "${LAN_IP:-}" ]; then
   LAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')"
@@ -42,8 +47,14 @@ if [ "$HOST" = "0.0.0.0" ]; then
   echo "LAN URL:   $DISPLAY_URL"
 fi
 
-if command -v firefox >/dev/null 2>&1; then
+if command -v open >/dev/null 2>&1; then
+  open "$LOCAL_URL" >/dev/null 2>&1 &
+elif command -v firefox >/dev/null 2>&1; then
   firefox "$LOCAL_URL" >/dev/null 2>&1 &
 else
   xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
+fi
+
+if [ "$DESKTOP_MODE" -eq 1 ]; then
+  exit 0
 fi

@@ -85,6 +85,17 @@ To create a desktop launcher on Lubuntu:
 
 Then use the `Gate Passage Planner` icon on your desktop. Depending on your desktop settings, you may need to right-click the launcher and allow it to run.
 
+## macOS Desktop Launcher
+
+From the project directory:
+
+```bash
+chmod +x scripts/start-passage-planner.sh scripts/install-macos.sh
+./scripts/install-macos.sh
+```
+
+Then double-click **Passage Planner.app** on the Desktop. It starts the local server in the background and opens the app in the default browser.
+
 To stop the server:
 
 ```bash
