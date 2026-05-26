@@ -978,9 +978,9 @@ function weatherRowsFromApi(payload) {
     const utcTime = formatHourDateTime(utcMs);
     const localTime = formatLondonDateTime(utcMs);
     const temp = forecast.temperature_2m?.[i] ?? "";
-    const wind = forecast.windspeed_10m?.[i] ?? "";
-    const gust = forecast.windgusts_10m?.[i] ?? "";
-    const windDir = forecast.winddirection_10m?.[i] ?? "";
+    const wind = forecast.wind_speed_10m?.[i] ?? forecast.windspeed_10m?.[i] ?? "";
+    const gust = forecast.wind_gusts_10m?.[i] ?? forecast.windgusts_10m?.[i] ?? "";
+    const windDir = forecast.wind_direction_10m?.[i] ?? forecast.winddirection_10m?.[i] ?? "";
     const waveDir = marine.wave_direction?.[i] ?? "";
     const swellDir = marine.swell_wave_direction?.[i] ?? "";
     const windBeaufort = beaufortScale(wind);
@@ -1965,7 +1965,10 @@ async function loadWeatherForGate(settings, options = {}) {
     });
     if (options.manualRefresh) params.set("refresh", "1");
     const response = await fetch(`/api/weather?${params}`);
-    if (!response.ok) throw new Error(`Weather provider returned ${response.status}`);
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.error || `Weather provider returned ${response.status}`);
+    }
     const payload = await response.json();
     const rows = weatherRowsFromApi(payload);
     if (!rows) throw new Error("Weather response did not contain hourly data");
@@ -1991,6 +1994,7 @@ async function loadWeatherForGate(settings, options = {}) {
     });
     currentWeatherMeta = null;
     $("dataStatus").textContent = `Weather data was not loaded for ${gate} (${error.message}).`;
+    if (options.manualRefresh) throw error;
     return null;
   }
 }

@@ -168,6 +168,7 @@ async function fetchWeather(url, res) {
 
   const key = locationName ? `${locationName}_${latitude}_${longitude}` : `${latitude}_${longitude}`;
   const cachePath = cacheName("weather", `${key}_${weatherDays}_${marineDays}`);
+  const latestCached = await readLatestCacheByPrefix(`weather-${key.replace(/[^a-z0-9._-]+/gi, "_")}_`);
   const manualRefresh = url.searchParams.get("refresh") === "1";
   const cached = await readCache(cachePath);
   const fetchedAtMs = cached?.cache?.fetchedAt ? new Date(cached.cache.fetchedAt).getTime() : 0;
@@ -192,8 +193,8 @@ async function fetchWeather(url, res) {
   weatherUrl.search = new URLSearchParams({
     latitude,
     longitude,
-    hourly: "temperature_2m,windspeed_10m,windgusts_10m,winddirection_10m",
-    windspeed_unit: "kn",
+    hourly: "temperature_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m",
+    wind_speed_unit: "kn",
     forecast_days: String(weatherDays),
     timezone: "GMT"
   });
@@ -212,17 +213,21 @@ async function fetchWeather(url, res) {
   try {
     const responses = await Promise.all([fetch(weatherUrl), fetch(marineUrl)]);
     const failed = responses.find((response) => !response.ok);
-    if (failed) throw new Error(`${failed.status} ${failed.statusText}`);
+    if (failed) {
+      const body = await failed.text().catch(() => "");
+      throw new Error(`Open-Meteo returned ${failed.status} ${failed.statusText}${body ? `: ${body.slice(0, 180).replace(/\s+/g, " ")}` : ""}`);
+    }
     [forecast, marine] = await Promise.all(responses.map((response) => response.json()));
   } catch (error) {
-    if (cached) {
-      return json(res, 200, withCacheStatus(cached, {
+    const fallback = cached || latestCached;
+    if (fallback) {
+      return json(res, 200, withCacheStatus(fallback, {
         hit: true,
         stale: true,
         manualRefresh,
         offlineFallback: true,
         fallbackReason: error.message,
-        refreshAfter: cached.cache?.refreshAfter || cached.cache?.fetchedAt || null
+        refreshAfter: fallback.cache?.refreshAfter || fallback.cache?.fetchedAt || null
       }));
     }
     throw error;
