@@ -120,6 +120,35 @@ function withCacheStatus(payload, status) {
   };
 }
 
+function oneLine(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+async function fetchProviderJson(label, url) {
+  const startedAt = Date.now();
+  console.log(`[weather-refresh] ${label} request ${url.toString()}`);
+  try {
+    const response = await fetch(url);
+    const elapsedMs = Date.now() - startedAt;
+    if (!response.ok) {
+      const body = oneLine(await response.text().catch(() => ""));
+      console.error(`[weather-refresh] ${label} failed status=${response.status} ${response.statusText} elapsedMs=${elapsedMs} body="${body.slice(0, 240)}"`);
+      const error = new Error(`${label} provider returned ${response.status} ${response.statusText}${body ? `: ${body.slice(0, 180)}` : ""}`);
+      error.status = 502;
+      error.upstreamStatus = response.status;
+      throw error;
+    }
+    console.log(`[weather-refresh] ${label} ok status=${response.status} elapsedMs=${elapsedMs}`);
+    return await response.json();
+  } catch (error) {
+    if (!error.upstreamStatus) {
+      console.error(`[weather-refresh] ${label} request error elapsedMs=${Date.now() - startedAt} error="${error.message}"`);
+      error.status = 502;
+    }
+    throw error;
+  }
+}
+
 async function readLatestCacheByPrefix(filePrefix) {
   try {
     const files = await readdir(cacheDir);
@@ -211,16 +240,14 @@ async function fetchWeather(url, res) {
   let forecast;
   let marine;
   try {
-    const responses = await Promise.all([fetch(weatherUrl), fetch(marineUrl)]);
-    const failed = responses.find((response) => !response.ok);
-    if (failed) {
-      const body = await failed.text().catch(() => "");
-      throw new Error(`Open-Meteo returned ${failed.status} ${failed.statusText}${body ? `: ${body.slice(0, 180).replace(/\s+/g, " ")}` : ""}`);
-    }
-    [forecast, marine] = await Promise.all(responses.map((response) => response.json()));
+    [forecast, marine] = await Promise.all([
+      fetchProviderJson("Open-Meteo weather", weatherUrl),
+      fetchProviderJson("Open-Meteo marine", marineUrl)
+    ]);
   } catch (error) {
     const fallback = cached || latestCached;
     if (fallback) {
+      console.error(`[weather-refresh] using stored weather fallback for ${locationName || `${latitude},${longitude}`}: ${error.message}`);
       return json(res, 200, withCacheStatus(fallback, {
         hit: true,
         stale: true,
@@ -230,7 +257,11 @@ async function fetchWeather(url, res) {
         refreshAfter: fallback.cache?.refreshAfter || fallback.cache?.fetchedAt || null
       }));
     }
-    throw error;
+    return json(res, error.status || 502, {
+      error: "Weather provider unavailable and no stored weather cache is available",
+      detail: error.message,
+      upstreamStatus: error.upstreamStatus || null
+    });
   }
   const payload = {
     location: locationName || null,
