@@ -1,9 +1,11 @@
 import { createServer } from "node:http";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
 const root = process.cwd();
 const publicDir = join(root, "public");
+const logDir = join(root, "data", "logs");
+const weatherLogPath = join(logDir, "weather-refresh.log");
 const cacheDir = join(root, "data", "cache");
 const locationConstantsPath = join(root, "data", "location-constants.json");
 const appSettingsPath = join(root, "data", "app-settings.json");
@@ -124,25 +126,34 @@ function oneLine(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function logWeather(level, message) {
+  const line = `${new Date().toISOString()} ${message}`;
+  if (level === "error") console.error(line);
+  else console.log(line);
+  mkdir(logDir, { recursive: true })
+    .then(() => appendFile(weatherLogPath, `${line}\n`))
+    .catch(() => {});
+}
+
 async function fetchProviderJson(label, url) {
   const startedAt = Date.now();
-  console.log(`[weather-refresh] ${label} request ${url.toString()}`);
+  logWeather("info", `[weather-refresh] ${label} request ${url.toString()}`);
   try {
     const response = await fetch(url);
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const body = oneLine(await response.text().catch(() => ""));
-      console.error(`[weather-refresh] ${label} failed status=${response.status} ${response.statusText} elapsedMs=${elapsedMs} body="${body.slice(0, 240)}"`);
+      logWeather("error", `[weather-refresh] ${label} failed status=${response.status} ${response.statusText} elapsedMs=${elapsedMs} body="${body.slice(0, 240)}"`);
       const error = new Error(`${label} provider returned ${response.status} ${response.statusText}${body ? `: ${body.slice(0, 180)}` : ""}`);
       error.status = 502;
       error.upstreamStatus = response.status;
       throw error;
     }
-    console.log(`[weather-refresh] ${label} ok status=${response.status} elapsedMs=${elapsedMs}`);
+    logWeather("info", `[weather-refresh] ${label} ok status=${response.status} elapsedMs=${elapsedMs}`);
     return await response.json();
   } catch (error) {
     if (!error.upstreamStatus) {
-      console.error(`[weather-refresh] ${label} request error elapsedMs=${Date.now() - startedAt} error="${error.message}"`);
+      logWeather("error", `[weather-refresh] ${label} request error elapsedMs=${Date.now() - startedAt} error="${error.message}"`);
       error.status = 502;
     }
     throw error;
@@ -247,7 +258,7 @@ async function fetchWeather(url, res) {
   } catch (error) {
     const fallback = cached || latestCached;
     if (fallback) {
-      console.error(`[weather-refresh] using stored weather fallback for ${locationName || `${latitude},${longitude}`}: ${error.message}`);
+      logWeather("error", `[weather-refresh] using stored weather fallback for ${locationName || `${latitude},${longitude}`}: ${error.message}`);
       return json(res, 200, withCacheStatus(fallback, {
         hit: true,
         stale: true,

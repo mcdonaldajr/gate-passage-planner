@@ -1967,7 +1967,8 @@ async function loadWeatherForGate(settings, options = {}) {
     const response = await fetch(`/api/weather?${params}`);
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => ({}));
-      throw new Error(errorPayload.error || `Weather provider returned ${response.status}`);
+      const detail = errorPayload.detail ? `: ${errorPayload.detail}` : "";
+      throw new Error(`${errorPayload.error || `Weather provider returned ${response.status}`}${detail}`);
     }
     const payload = await response.json();
     const rows = weatherRowsFromApi(payload);
