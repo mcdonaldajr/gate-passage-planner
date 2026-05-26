@@ -1214,6 +1214,12 @@ function cacheStatusVerb(meta, freshLabel) {
   return freshLabel;
 }
 
+function manualRefreshWarning(source, meta) {
+  if (!meta?.offlineFallback && !meta?.stale) return "";
+  const reason = meta?.fallbackReason ? `\n\nReason: ${meta.fallbackReason}` : "";
+  return `${source} could not be refreshed from the web. The app is using stored offline data instead.${reason}`;
+}
+
 function summarize(rows) {
   const headers = rows[0];
   const idx = (name) => headers.indexOf(name);
@@ -2006,9 +2012,19 @@ async function refreshWeather(options = {}) {
       renderReadOnlyTable("weatherDataTable", currentWeatherRows, fetchedWeatherColumns);
       recalculateCurrentPlan();
       $("dataStatus").textContent = `Weather ${cacheStatusVerb(currentWeatherMeta, "updated from web")} for ${settings.gate}.`;
+      const warning = manualRefreshWarning("Weather", currentWeatherMeta);
+      if (warning && !options.suppressAlerts) window.alert(warning);
+      return { ok: true, warning };
     } else {
       updateFreshness();
+      const warning = `Weather could not be refreshed from the web for ${settings.gate}.`;
+      if (!options.suppressAlerts) window.alert(warning);
+      return { ok: false, warning };
     }
+  } catch (error) {
+    const warning = `Weather could not be refreshed from the web for ${settings.gate}.\n\nReason: ${error.message}`;
+    if (!options.suppressAlerts) window.alert(warning);
+    return { ok: false, warning };
   } finally {
     if (!options.skipBusy) setRefreshButtonsBusy(["refreshWeather", "refreshAll"], false);
   }
@@ -2045,12 +2061,18 @@ async function refreshTides(options = {}) {
     renderReadOnlyTable("gateCalcTable", currentTideRows, editableTideColumns);
     $("dataStatus").textContent = `Tides ${cacheStatusVerb(currentTideMeta, "updated from web")} for ${settings.gate}.`;
     recalculateCurrentPlan();
+    const warning = isManualRefresh ? manualRefreshWarning("Tide data", currentTideMeta) : "";
+    if (warning && !options.suppressAlerts) window.alert(warning);
+    return { ok: true, warning };
   } catch (error) {
     currentTideMeta = null;
     currentFetchedTideRows = null;
     currentTideRows = null;
     $("dataStatus").textContent = `Tide data was not loaded for ${settings.gate} (${error.message}).`;
     updateFreshness();
+    const warning = `Tide data could not be refreshed from the web for ${settings.gate}.\n\nReason: ${error.message}`;
+    if (isManualRefresh && !options.suppressAlerts) window.alert(warning);
+    return { ok: false, warning };
   } finally {
     if (!options.skipBusy) setRefreshButtonsBusy(["refreshTides", "refreshAll"], false);
   }
@@ -2059,10 +2081,16 @@ async function refreshTides(options = {}) {
 async function refreshAll() {
   setRefreshButtonsBusy(["refreshWeather", "refreshTides", "refreshAll"], true, "Refreshing all...");
   try {
-    await refreshWeather({ skipBusy: true });
-    await refreshTides({ skipBusy: true, manualRefresh: true });
+    const weatherResult = await refreshWeather({ skipBusy: true, suppressAlerts: true });
+    const tideResult = await refreshTides({ skipBusy: true, manualRefresh: true, suppressAlerts: true });
     updateFreshness();
-    $("dataStatus").textContent = `Refresh all complete for ${settingsFromControls().gate}.`;
+    const warnings = [weatherResult?.warning, tideResult?.warning].filter(Boolean);
+    if (warnings.length) {
+      $("dataStatus").textContent = `Refresh all used stored offline data for ${settingsFromControls().gate}.`;
+      window.alert(warnings.join("\n\n"));
+    } else {
+      $("dataStatus").textContent = `Refresh all complete for ${settingsFromControls().gate}.`;
+    }
   } finally {
     setRefreshButtonsBusy(["refreshWeather", "refreshTides", "refreshAll"], false);
   }

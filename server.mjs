@@ -180,7 +180,7 @@ async function fetchWeather(url, res) {
         refreshAfter: new Date(fetchedAtMs + weatherRefreshGuardMs).toISOString()
     }));
   }
-  if (cached && ageMs < weatherRefreshGuardMs && ageMs <= weatherTtlMs) {
+  if (cached && !manualRefresh && ageMs < weatherRefreshGuardMs && ageMs <= weatherTtlMs) {
     return json(res, 200, withCacheStatus(cached, {
       hit: true,
       manualRefresh,
@@ -256,7 +256,7 @@ async function fetchTides(url, res) {
   const cachePath = cacheName("tides", `${stationId}_${todayKey()}`);
   const manualRefresh = url.searchParams.get("refresh") === "1";
   const cached = await readFreshCache(cachePath, 24 * 60 * 60 * 1000);
-  if (cached) return json(res, 200, withCacheStatus(cached, { hit: true }));
+  if (cached && !manualRefresh) return json(res, 200, withCacheStatus(cached, { hit: true }));
 
   const latestCached = await readLatestCacheByPrefix(`tides-${stationId}_`);
   if (latestCached && !manualRefresh) {
