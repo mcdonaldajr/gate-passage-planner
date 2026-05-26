@@ -9,6 +9,7 @@ This tool is experimental and untested. It is not for navigation. Cross-check al
 - Fetches weather and marine forecast data from Open-Meteo.
 - Fetches tide events from the ADMIRALTY UK Tidal API.
 - Caches provider data locally to avoid unnecessary API calls.
+- Can use stored weather/tide data while offline; explicit refreshes require internet.
 - Calculates gate timing, tidal stream direction/rate, wind/wave/tide comfort, speed over ground, and an overall rating.
 - Lets you edit local tidal-gate constants and crew capability thresholds.
 
@@ -44,6 +45,20 @@ LAN URL:   http://192.168.1.23:4173
 ```
 
 Open the LAN URL in Safari or Firefox on the iPad while it is connected to the same secure Wi-Fi network.
+
+## Offline Use
+
+The server and app run locally. Once weather and tide data have been fetched at least once for a location/station, the app can load that stored data and recalculate passage plans without an internet connection.
+
+Offline behaviour:
+
+- Starting the app, changing course/speed/crew settings, changing tabs, and recalculating use local files only.
+- Weather is loaded from the stored cache for the selected location, even when it is older than the normal refresh interval.
+- Tide data is loaded from today's stored UKHO cache when available, otherwise from the latest stored tide cache for the station.
+- The status cards mark stale/offline data as stored offline data.
+- `Refresh weather`, `Refresh tides`, and `Refresh all` still need internet to obtain new provider data. If refresh cannot reach the provider but stored data exists, the app keeps using the stored data.
+
+Before going offline, open each tidal gate/location you may use and run `Refresh all` while connected.
 
 To force local-only mode instead:
 

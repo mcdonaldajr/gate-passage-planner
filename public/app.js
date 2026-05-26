@@ -1149,9 +1149,10 @@ function renderFreshnessCard(id, meta, label) {
   const expired = expires ? Date.now() >= expires.getTime() : false;
   card.dataset.expired = String(expired);
   card.querySelector("strong").textContent = `${label}: ${fetched.toLocaleString()}`;
+  const prefix = meta.offlineFallback || meta.stale ? "stored offline data; " : "";
   card.querySelector("small").textContent = expires
-    ? `${formatHoursOld(meta.fetchedAt)}; ${expired ? "refresh due" : `next refresh ${expires.toLocaleString()}`}`
-    : formatHoursOld(meta.fetchedAt);
+    ? `${prefix}${formatHoursOld(meta.fetchedAt)}; ${expired ? "refresh due" : `next refresh ${expires.toLocaleString()}`}`
+    : `${prefix}${formatHoursOld(meta.fetchedAt)}`;
 }
 
 function updateFreshness() {
@@ -1191,6 +1192,12 @@ function setRefreshButtonsBusy(ids, isBusy, busyText = "Refreshing...") {
       if (button.dataset.idleText) button.textContent = button.dataset.idleText;
     }
   }
+}
+
+function cacheStatusVerb(meta, freshLabel) {
+  if (meta?.offlineFallback || meta?.stale) return "loaded from stored offline data";
+  if (meta?.hit) return "loaded from cache";
+  return freshLabel;
 }
 
 function summarize(rows) {
@@ -1984,7 +1991,7 @@ async function refreshWeather(options = {}) {
       currentWeatherRows = rows;
       renderReadOnlyTable("weatherDataTable", currentWeatherRows, fetchedWeatherColumns);
       recalculateCurrentPlan();
-      $("dataStatus").textContent = `Weather ${currentWeatherMeta?.hit ? "loaded from cache" : "updated from web"} for ${settings.gate}.`;
+      $("dataStatus").textContent = `Weather ${cacheStatusVerb(currentWeatherMeta, "updated from web")} for ${settings.gate}.`;
     } else {
       updateFreshness();
     }
@@ -1995,16 +2002,21 @@ async function refreshWeather(options = {}) {
 
 async function refreshTides(options = {}) {
   const settings = settingsFromControls();
-  if (!options.skipBusy) setRefreshButtonsBusy(["refreshTides", "refreshAll"], true, "Refreshing tides...");
-  $("dataStatus").textContent = `Refreshing tides for ${settings.gate}...`;
-  const card = $("tideFreshness");
-  if (card) {
-    card.dataset.expired = "false";
-    card.querySelector("strong").textContent = "Refreshing tides...";
-    card.querySelector("small").textContent = settings.gate;
+  const isManualRefresh = options.manualRefresh !== false;
+  if (!options.skipBusy) setRefreshButtonsBusy(["refreshTides", "refreshAll"], true, isManualRefresh ? "Refreshing tides..." : "Loading tides...");
+  if (!options.silent) {
+    $("dataStatus").textContent = `${isManualRefresh ? "Refreshing" : "Loading stored"} tides for ${settings.gate}...`;
+    const card = $("tideFreshness");
+    if (card) {
+      card.dataset.expired = "false";
+      card.querySelector("strong").textContent = isManualRefresh ? "Refreshing tides..." : "Loading stored tides...";
+      card.querySelector("small").textContent = settings.gate;
+    }
   }
   try {
-    const response = await fetch(`/api/tides?${new URLSearchParams({ location: settings.gate })}`);
+    const params = new URLSearchParams({ location: settings.gate });
+    if (isManualRefresh) params.set("refresh", "1");
+    const response = await fetch(`/api/tides?${params}`);
     if (!response.ok) {
       const errorPayload = await response.json().catch(() => ({}));
       throw new Error(errorPayload.error || `Tide provider returned ${response.status}`);
@@ -2017,7 +2029,7 @@ async function refreshTides(options = {}) {
     renderReadOnlyTable("fetchedTideTable", currentFetchedTideRows, fetchedTideColumns);
     currentTideRows = tideCalculationRowsFromEvents(currentFetchedTideRows, settings.gate);
     renderReadOnlyTable("gateCalcTable", currentTideRows, editableTideColumns);
-    $("dataStatus").textContent = `Tides ${currentTideMeta?.hit ? "loaded from cache" : "updated from web"} for ${settings.gate}.`;
+    $("dataStatus").textContent = `Tides ${cacheStatusVerb(currentTideMeta, "updated from web")} for ${settings.gate}.`;
     recalculateCurrentPlan();
   } catch (error) {
     currentTideMeta = null;
@@ -2034,7 +2046,7 @@ async function refreshAll() {
   setRefreshButtonsBusy(["refreshWeather", "refreshTides", "refreshAll"], true, "Refreshing all...");
   try {
     await refreshWeather({ skipBusy: true });
-    await refreshTides({ skipBusy: true });
+    await refreshTides({ skipBusy: true, manualRefresh: true });
     updateFreshness();
     $("dataStatus").textContent = `Refresh all complete for ${settingsFromControls().gate}.`;
   } finally {
@@ -2058,7 +2070,7 @@ async function loadStoredData() {
   const settings = settingsFromControls();
   $("locationLabel").textContent = settings.gate;
   currentWeatherRows = await loadWeatherForGate(settings);
-  await refreshTides();
+  await refreshTides({ skipBusy: true, manualRefresh: false, silent: true });
   renderLocationConstantsTable();
   if (currentWeatherRows) renderReadOnlyTable("weatherDataTable", currentWeatherRows, fetchedWeatherColumns);
   if (currentTideRows) renderReadOnlyTable("gateCalcTable", currentTideRows, editableTideColumns);

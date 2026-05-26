@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
 const root = process.cwd();
@@ -108,6 +108,33 @@ async function readCache(path) {
   }
 }
 
+function withCacheStatus(payload, status) {
+  return {
+    ...payload,
+    cache: {
+      ...payload.cache,
+      ...status
+    }
+  };
+}
+
+async function readLatestCacheByPrefix(filePrefix) {
+  try {
+    const files = await readdir(cacheDir);
+    const matches = files
+      .filter((file) => file.startsWith(filePrefix) && file.endsWith(".json"))
+      .sort()
+      .reverse();
+    for (const file of matches) {
+      const cached = await readCache(join(cacheDir, file));
+      if (cached) return cached;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function readAppSettings() {
   return {
     ...defaultAppSettings,
@@ -143,16 +170,20 @@ async function fetchWeather(url, res) {
   const cached = await readCache(cachePath);
   const fetchedAtMs = cached?.cache?.fetchedAt ? new Date(cached.cache.fetchedAt).getTime() : 0;
   const ageMs = fetchedAtMs ? Date.now() - fetchedAtMs : Infinity;
-  if (cached && (!manualRefresh || ageMs < weatherRefreshGuardMs) && ageMs <= weatherTtlMs) {
-    return json(res, 200, {
-      ...cached,
-      cache: {
-        ...cached.cache,
+  if (cached && !manualRefresh) {
+    return json(res, 200, withCacheStatus(cached, {
         hit: true,
         manualRefresh,
+        stale: ageMs > weatherTtlMs,
         refreshAfter: new Date(fetchedAtMs + weatherRefreshGuardMs).toISOString()
-      }
-    });
+    }));
+  }
+  if (cached && ageMs < weatherRefreshGuardMs && ageMs <= weatherTtlMs) {
+    return json(res, 200, withCacheStatus(cached, {
+      hit: true,
+      manualRefresh,
+      refreshAfter: new Date(fetchedAtMs + weatherRefreshGuardMs).toISOString()
+    }));
   }
 
   const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
@@ -174,10 +205,26 @@ async function fetchWeather(url, res) {
     timezone: "GMT"
   });
 
-  const [forecast, marine] = await Promise.all([
-    fetch(weatherUrl).then((r) => r.json()),
-    fetch(marineUrl).then((r) => r.json())
-  ]);
+  let forecast;
+  let marine;
+  try {
+    const responses = await Promise.all([fetch(weatherUrl), fetch(marineUrl)]);
+    const failed = responses.find((response) => !response.ok);
+    if (failed) throw new Error(`${failed.status} ${failed.statusText}`);
+    [forecast, marine] = await Promise.all(responses.map((response) => response.json()));
+  } catch (error) {
+    if (cached) {
+      return json(res, 200, withCacheStatus(cached, {
+        hit: true,
+        stale: true,
+        manualRefresh,
+        offlineFallback: true,
+        fallbackReason: error.message,
+        refreshAfter: cached.cache?.refreshAfter || cached.cache?.fetchedAt || null
+      }));
+    }
+    throw error;
+  }
   const payload = {
     location: locationName || null,
     latitude: Number(latitude),
@@ -205,11 +252,32 @@ async function fetchTides(url, res) {
   if (!stationId || stationId === "0000") return json(res, 400, { error: "stationId is required" });
 
   const cachePath = cacheName("tides", `${stationId}_${todayKey()}`);
+  const manualRefresh = url.searchParams.get("refresh") === "1";
   const cached = await readFreshCache(cachePath, 24 * 60 * 60 * 1000);
-  if (cached) return json(res, 200, { ...cached, cache: { ...cached.cache, hit: true } });
+  if (cached) return json(res, 200, withCacheStatus(cached, { hit: true }));
+
+  const latestCached = await readLatestCacheByPrefix(`tides-${stationId}_`);
+  if (latestCached && !manualRefresh) {
+    return json(res, 200, withCacheStatus(latestCached, {
+      hit: true,
+      stale: true,
+      offlineFallback: true,
+      fallbackReason: "Using latest stored tide data"
+    }));
+  }
 
   const apiKey = process.env.UKHO_API_KEY || appSettings.ukhoApiKey;
-  if (!apiKey) return json(res, 400, { error: "UKHO_API_KEY is not set and no cached tide data is available for today" });
+  if (!apiKey) {
+    if (latestCached) {
+      return json(res, 200, withCacheStatus(latestCached, {
+        hit: true,
+        stale: true,
+        offlineFallback: true,
+        fallbackReason: "UKHO_API_KEY is not set; using latest stored tide data"
+      }));
+    }
+    return json(res, 400, { error: "UKHO_API_KEY is not set and no cached tide data is available" });
+  }
 
   const paths = [
     `https://admiraltyapi.azure-api.net/uktidalapi/v1/Stations/${stationId}/TidalEvents`,
@@ -218,25 +286,37 @@ async function fetchTides(url, res) {
 
   let lastError = "No response";
   for (const path of paths) {
-    const response = await fetch(path, { headers: { "Ocp-Apim-Subscription-Key": apiKey } });
-    if (response.ok) {
-      const payload = {
-        stationId,
-        stationName: appSettings.baseTideStationName || "Oban",
-        timeStandard: appSettings.baseTideTimeStandard || "UT",
-        location: locationName || null,
-        events: await response.json(),
-        cache: {
-          hit: false,
-          fetchedAt: new Date().toISOString(),
-          refreshAfter: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          policy: "once per day tide cache"
-        }
-      };
-      await writeCache(cachePath, payload);
-      return json(res, 200, payload);
+    try {
+      const response = await fetch(path, { headers: { "Ocp-Apim-Subscription-Key": apiKey } });
+      if (response.ok) {
+        const payload = {
+          stationId,
+          stationName: appSettings.baseTideStationName || "Oban",
+          timeStandard: appSettings.baseTideTimeStandard || "UT",
+          location: locationName || null,
+          events: await response.json(),
+          cache: {
+            hit: false,
+            fetchedAt: new Date().toISOString(),
+            refreshAfter: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            policy: "once per day tide cache"
+          }
+        };
+        await writeCache(cachePath, payload);
+        return json(res, 200, payload);
+      }
+      lastError = `${response.status} ${response.statusText}`;
+    } catch (error) {
+      lastError = error.message;
     }
-    lastError = `${response.status} ${response.statusText}`;
+  }
+  if (latestCached) {
+    return json(res, 200, withCacheStatus(latestCached, {
+      hit: true,
+      stale: true,
+      offlineFallback: true,
+      fallbackReason: lastError
+    }));
   }
   json(res, 502, { error: lastError });
 }
