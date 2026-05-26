@@ -7,6 +7,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$APP_DIR/data/logs"
 PORT="${PORT:-4173}"
 LOCAL_URL="http://127.0.0.1:${PORT}"
+BROWSER_LOG="$LOG_DIR/browser.log"
 
 mkdir -p "$LOG_DIR"
 exec >>"$LOG_DIR/desktop-launcher.log" 2>&1
@@ -30,11 +31,28 @@ server_responds() {
 
 open_browser() {
   if command -v firefox >/dev/null 2>&1; then
-    log "Opening Firefox at $LOCAL_URL"
-    firefox "$LOCAL_URL" >/dev/null 2>&1 &
+    log "Opening Firefox at $LOCAL_URL; browser log is $BROWSER_LOG"
+    {
+      echo "$(timestamp) firefox launch requested"
+      echo "DISPLAY=${DISPLAY:-}"
+      echo "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}"
+      echo "XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}"
+      echo "MOZ_ENABLE_WAYLAND=${MOZ_ENABLE_WAYLAND:-}"
+      firefox --new-tab "$LOCAL_URL"
+      status=$?
+      echo "$(timestamp) firefox exited with status $status"
+    } >>"$BROWSER_LOG" 2>&1 &
   elif command -v xdg-open >/dev/null 2>&1; then
-    log "Opening xdg-open at $LOCAL_URL"
-    xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
+    log "Opening xdg-open at $LOCAL_URL; browser log is $BROWSER_LOG"
+    {
+      echo "$(timestamp) xdg-open launch requested"
+      echo "DISPLAY=${DISPLAY:-}"
+      echo "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}"
+      echo "XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}"
+      xdg-open "$LOCAL_URL"
+      status=$?
+      echo "$(timestamp) xdg-open exited with status $status"
+    } >>"$BROWSER_LOG" 2>&1 &
   else
     log "ERROR: neither firefox nor xdg-open is available. Open $LOCAL_URL manually."
     return 0
@@ -45,6 +63,9 @@ log "desktop wrapper invoked"
 log "APP_DIR=$APP_DIR"
 log "PATH=$PATH"
 log "LOCAL_URL=$LOCAL_URL"
+log "DISPLAY=${DISPLAY:-}"
+log "WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}"
+log "XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}"
 
 if "$APP_DIR/scripts/start-passage-planner.sh" --desktop; then
   log "start-passage-planner.sh returned successfully"
