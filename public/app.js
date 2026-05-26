@@ -1178,6 +1178,21 @@ function updateFreshness() {
   horizon.querySelector("small").textContent = `${currentPlanRows.length - 1} hourly rows, limited by tide data`;
 }
 
+function setRefreshButtonsBusy(ids, isBusy, busyText = "Refreshing...") {
+  for (const id of ids) {
+    const button = $(id);
+    if (!button) continue;
+    if (isBusy) {
+      if (!button.dataset.idleText) button.dataset.idleText = button.textContent;
+      button.disabled = true;
+      button.textContent = busyText;
+    } else {
+      button.disabled = false;
+      if (button.dataset.idleText) button.textContent = button.dataset.idleText;
+    }
+  }
+}
+
 function summarize(rows) {
   const headers = rows[0];
   const idx = (name) => headers.indexOf(name);
@@ -1953,18 +1968,41 @@ async function loadWeatherForGate(settings, options = {}) {
   }
 }
 
-async function refreshWeather() {
+async function refreshWeather(options = {}) {
   const settings = settingsFromControls();
-  const rows = await loadWeatherForGate(settings, { manualRefresh: true });
-  if (rows) {
-    currentWeatherRows = rows;
-    renderReadOnlyTable("weatherDataTable", currentWeatherRows, fetchedWeatherColumns);
-    recalculateCurrentPlan();
+  if (!options.skipBusy) setRefreshButtonsBusy(["refreshWeather", "refreshAll"], true, "Refreshing weather...");
+  $("dataStatus").textContent = `Refreshing weather for ${settings.gate}...`;
+  const card = $("weatherFreshness");
+  if (card) {
+    card.dataset.expired = "false";
+    card.querySelector("strong").textContent = "Refreshing weather...";
+    card.querySelector("small").textContent = settings.gate;
+  }
+  try {
+    const rows = await loadWeatherForGate(settings, { manualRefresh: true });
+    if (rows) {
+      currentWeatherRows = rows;
+      renderReadOnlyTable("weatherDataTable", currentWeatherRows, fetchedWeatherColumns);
+      recalculateCurrentPlan();
+      $("dataStatus").textContent = `Weather ${currentWeatherMeta?.hit ? "loaded from cache" : "updated from web"} for ${settings.gate}.`;
+    } else {
+      updateFreshness();
+    }
+  } finally {
+    if (!options.skipBusy) setRefreshButtonsBusy(["refreshWeather", "refreshAll"], false);
   }
 }
 
-async function refreshTides() {
+async function refreshTides(options = {}) {
   const settings = settingsFromControls();
+  if (!options.skipBusy) setRefreshButtonsBusy(["refreshTides", "refreshAll"], true, "Refreshing tides...");
+  $("dataStatus").textContent = `Refreshing tides for ${settings.gate}...`;
+  const card = $("tideFreshness");
+  if (card) {
+    card.dataset.expired = "false";
+    card.querySelector("strong").textContent = "Refreshing tides...";
+    card.querySelector("small").textContent = settings.gate;
+  }
   try {
     const response = await fetch(`/api/tides?${new URLSearchParams({ location: settings.gate })}`);
     if (!response.ok) {
@@ -1979,7 +2017,7 @@ async function refreshTides() {
     renderReadOnlyTable("fetchedTideTable", currentFetchedTideRows, fetchedTideColumns);
     currentTideRows = tideCalculationRowsFromEvents(currentFetchedTideRows, settings.gate);
     renderReadOnlyTable("gateCalcTable", currentTideRows, editableTideColumns);
-    $("dataStatus").textContent = "";
+    $("dataStatus").textContent = `Tides ${currentTideMeta?.hit ? "loaded from cache" : "updated from web"} for ${settings.gate}.`;
     recalculateCurrentPlan();
   } catch (error) {
     currentTideMeta = null;
@@ -1987,13 +2025,21 @@ async function refreshTides() {
     currentTideRows = null;
     $("dataStatus").textContent = `Tide data was not loaded for ${settings.gate} (${error.message}).`;
     updateFreshness();
+  } finally {
+    if (!options.skipBusy) setRefreshButtonsBusy(["refreshTides", "refreshAll"], false);
   }
 }
 
 async function refreshAll() {
-  await refreshWeather();
-  await refreshTides();
-  updateFreshness();
+  setRefreshButtonsBusy(["refreshWeather", "refreshTides", "refreshAll"], true, "Refreshing all...");
+  try {
+    await refreshWeather({ skipBusy: true });
+    await refreshTides({ skipBusy: true });
+    updateFreshness();
+    $("dataStatus").textContent = `Refresh all complete for ${settingsFromControls().gate}.`;
+  } finally {
+    setRefreshButtonsBusy(["refreshWeather", "refreshTides", "refreshAll"], false);
+  }
 }
 
 async function stopServer() {
