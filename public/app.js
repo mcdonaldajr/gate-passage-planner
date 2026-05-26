@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+const webVersion = "0.1.0";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time" },
@@ -738,6 +739,19 @@ function formatLondonDateTime(ms) {
   const parts = timeZoneParts(ms, "Europe/London");
   const pad = (value) => String(value).padStart(2, "0");
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)} ${pad(parts.hour)}:${pad(parts.minute)}`;
+}
+
+function formatLocalDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-GB", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 function timeZoneOffsetMs(ms, timeZone = "Europe/London") {
@@ -2054,18 +2068,6 @@ async function refreshAll() {
   }
 }
 
-async function stopServer() {
-  const confirmed = window.confirm("Stop the local passage planner server? The app will be unavailable until you start it again.");
-  if (!confirmed) return;
-  try {
-    const response = await fetch("/api/shutdown", { method: "POST" });
-    if (!response.ok) throw new Error(`server returned ${response.status}`);
-    $("dataStatus").textContent = "Server stop requested. You can close this page or restart the server from the terminal.";
-  } catch (error) {
-    $("dataStatus").textContent = `Server stop request failed: ${error.message}.`;
-  }
-}
-
 async function loadStoredData() {
   const settings = settingsFromControls();
   $("locationLabel").textContent = settings.gate;
@@ -2100,7 +2102,6 @@ for (const id of ["speed", "slack", "lwl", "displacement", ...calculationSetting
 $("refreshWeather").addEventListener("click", refreshWeather);
 $("refreshTides").addEventListener("click", refreshTides);
 $("refreshAll").addEventListener("click", refreshAll);
-$("stopServer").addEventListener("click", stopServer);
 $("addLocation").addEventListener("click", addLocation);
 $("locationTable").addEventListener("change", (event) => {
   if (!event.target.matches("input[data-location][data-key]")) return;
@@ -2146,8 +2147,26 @@ for (const button of document.querySelectorAll(".tabButton")) {
     for (const panel of document.querySelectorAll(".tabPanel")) panel.classList.remove("active");
     button.classList.add("active");
     $(`${button.dataset.tab}Panel`).classList.add("active");
+    if (button.dataset.tab === "about") renderAbout();
   });
 }
+
+async function renderAbout() {
+  $("webVersion").textContent = webVersion;
+  try {
+    const response = await fetch("/api/version");
+    if (!response.ok) throw new Error("Version endpoint failed");
+    const data = await response.json();
+    $("serverVersion").textContent = data.serverVersion || "-";
+    $("serverAddress").textContent = `${data.host || location.hostname}:${data.port || location.port || "4173"}`;
+    $("serverStarted").textContent = formatLocalDateTime(data.startedAt);
+  } catch {
+    $("serverVersion").textContent = "Needs server restart";
+    $("serverAddress").textContent = location.host || "-";
+    $("serverStarted").textContent = "-";
+  }
+}
+
 async function initializeApp() {
   await loadSettings();
   await loadLocationConstants();
@@ -2161,6 +2180,7 @@ async function initializeApp() {
   renderReadOnlyTable("beaufortTable", beaufortRows(), ["Force", "Description", "Knots", "m/s"]);
   renderComfortConstantsTable();
   await loadStoredData();
+  renderAbout();
 }
 
 initializeApp();

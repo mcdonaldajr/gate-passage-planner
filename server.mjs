@@ -9,6 +9,8 @@ const locationConstantsPath = join(root, "data", "location-constants.json");
 const appSettingsPath = join(root, "data", "app-settings.json");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
+const serverVersion = "0.1.0";
+const serverStartedAt = new Date().toISOString();
 const weatherTtlMs = Number(process.env.WEATHER_CACHE_HOURS || 1) * 60 * 60 * 1000;
 const weatherRefreshGuardMs = Number(process.env.WEATHER_REFRESH_GUARD_MINUTES || 10) * 60 * 1000;
 
@@ -369,6 +371,14 @@ const server = createServer(async (req, res) => {
         ok: true,
         ...publicAppSettings(next),
         ukhoApiKeySet: Boolean(process.env.UKHO_API_KEY || next.ukhoApiKey),
+      });
+    }
+    if (url.pathname === "/api/version") {
+      return json(res, 200, {
+        serverVersion,
+        host,
+        port,
+        startedAt: serverStartedAt
       });
     }
     if (url.pathname === "/api/shutdown" && req.method === "POST") {

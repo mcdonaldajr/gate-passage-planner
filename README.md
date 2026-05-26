@@ -124,8 +124,6 @@ To stop the server:
 ./scripts/stop-passage-planner.sh
 ```
 
-You can also use the in-app `Stop server` button.
-
 ## UKHO API Key
 
 The tide download uses an ADMIRALTY UK Tidal API subscription key.

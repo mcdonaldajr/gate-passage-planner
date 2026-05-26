@@ -16,7 +16,6 @@
         <button id="refreshWeather" type="button">Refresh weather</button>
         <button id="refreshTides" type="button">Refresh tides</button>
         <button id="refreshAll" type="button">Refresh all</button>
-        <button id="stopServer" class="dangerButton" type="button">Stop server</button>
       </div>
     </header>
 
@@ -35,6 +34,7 @@
         <button class="tabButton" type="button" data-tab="beaufort">Beaufort</button>
         <button class="tabButton" type="button" data-tab="location">Location Constants</button>
         <button class="tabButton" type="button" data-tab="constants">Constants</button>
+        <button class="tabButton" type="button" data-tab="about">About</button>
       </nav>
 
       <section id="planPanel" class="tabPanel active">
@@ -358,6 +358,29 @@
             <thead></thead>
             <tbody></tbody>
           </table>
+        </section>
+      </section>
+
+      <section id="aboutPanel" class="tabPanel">
+        <div class="panelHeader">
+          <div>
+            <h2>About</h2>
+            <p>Version and server-control details for this local planner.</p>
+          </div>
+        </div>
+        <section class="aboutGrid" aria-label="App version details">
+          <div title="Version of the browser files currently loaded."><span>Web version</span><strong id="webVersion">-</strong></div>
+          <div title="Version reported by the local Node server. If this differs from Web version, restart the server."><span>Server version</span><strong id="serverVersion">-</strong></div>
+          <div title="Address and port reported by the local server. Use this host and port from an iPad on the same network."><span>Server address</span><strong id="serverAddress">-</strong></div>
+          <div title="When the local server process started. If this predates a git pull, restart the server."><span>Server started</span><strong id="serverStarted">-</strong></div>
+        </section>
+        <section class="serviceHelp" aria-label="Server service commands">
+          <h3>Server Control On Lubuntu</h3>
+          <p>Use the desktop Start/Stop icons, or run these user-service commands in a terminal:</p>
+          <code>systemctl --user start gate-passage-planner</code>
+          <code>systemctl --user stop gate-passage-planner</code>
+          <code>systemctl --user status gate-passage-planner</code>
+          <code>journalctl --user -u gate-passage-planner -f</code>
         </section>
       </section>
     </main>
