@@ -3,21 +3,35 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DESKTOP_DIR="${HOME}/Desktop"
-LAUNCHER="${DESKTOP_DIR}/Gate Passage Planner.desktop"
-DESKTOP_WRAPPER="${APP_DIR}/scripts/launch-desktop-lubuntu.sh"
+START_LAUNCHER="${DESKTOP_DIR}/Start Gate Passage Planner Server.desktop"
+STOP_LAUNCHER="${DESKTOP_DIR}/Stop Gate Passage Planner Server.desktop"
+START_SCRIPT="${APP_DIR}/scripts/start-server-lubuntu.sh"
+STOP_SCRIPT="${APP_DIR}/scripts/stop-server-lubuntu.sh"
 
 mkdir -p "$DESKTOP_DIR"
-chmod +x "$APP_DIR/scripts/start-passage-planner.sh" "$APP_DIR/scripts/run-server-lubuntu.sh" "$DESKTOP_WRAPPER"
+chmod +x "$START_SCRIPT" "$STOP_SCRIPT"
+rm -f "${DESKTOP_DIR}/Gate Passage Planner.desktop"
 
-cat > "$LAUNCHER" <<DESKTOP
+cat > "$START_LAUNCHER" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=Gate Passage Planner
-Comment=Start the local passage planner and open Firefox
-Exec=/usr/bin/env bash ${DESKTOP_WRAPPER}
+Name=Start Gate Passage Planner Server
+Comment=Start the local passage planner server
+Exec=/usr/bin/env bash ${START_SCRIPT}
 Terminal=false
 Categories=Utility;
 DESKTOP
 
-chmod +x "$LAUNCHER"
-echo "Created desktop launcher: $LAUNCHER"
+cat > "$STOP_LAUNCHER" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Stop Gate Passage Planner Server
+Comment=Stop the local passage planner server
+Exec=/usr/bin/env bash ${STOP_SCRIPT}
+Terminal=false
+Categories=Utility;
+DESKTOP
+
+chmod +x "$START_LAUNCHER" "$STOP_LAUNCHER"
+echo "Created desktop launcher: $START_LAUNCHER"
+echo "Created desktop launcher: $STOP_LAUNCHER"

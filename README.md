@@ -23,28 +23,35 @@ cd gate-passage-planner
 ./scripts/install-lubuntu.sh
 ```
 
-The install script checks for Node.js, npm, and Firefox, creates local data folders, and creates `data/app-settings.json` from `data/app-settings.example.json` if needed.
+The install script checks for Node.js, creates local data folders, installs a user-level systemd service, and creates `data/app-settings.json` from `data/app-settings.example.json` if needed.
 
 ## Start The App
 
 ```bash
-./scripts/start-passage-planner.sh
+systemctl --user start gate-passage-planner
 ```
 
-This starts the local server and opens Firefox at:
+This starts the local server at:
 
 ```text
 http://127.0.0.1:4173
 ```
 
-By default, the launch script also listens on the boat/local Wi-Fi network and prints a LAN URL like:
+The server also listens on the boat/local Wi-Fi network. Open the Lubuntu machine's LAN address in Safari or Firefox on the iPad while it is connected to the same secure Wi-Fi network, for example:
 
-```bash
-Local URL: http://127.0.0.1:4173
-LAN URL:   http://192.168.1.23:4173
+```text
+http://192.168.1.23:4173
 ```
 
-Open the LAN URL in Safari or Firefox on the iPad while it is connected to the same secure Wi-Fi network.
+Use your browser bookmark to open the app. The Lubuntu desktop icons only start and stop the server; they do not launch Firefox.
+
+Useful service commands:
+
+```bash
+systemctl --user status gate-passage-planner
+systemctl --user stop gate-passage-planner
+journalctl --user -u gate-passage-planner -f
+```
 
 ## Offline Use
 
@@ -92,23 +99,13 @@ Example firewall command:
 sudo ufw allow from 192.168.0.0/16 to any port 4173 proto tcp
 ```
 
-To create a desktop launcher on Lubuntu:
+To create desktop launchers on Lubuntu:
 
 ```bash
 ./scripts/create-desktop-launcher.sh
 ```
 
-Then use the `Gate Passage Planner` icon on your desktop. Depending on your desktop settings, you may need to right-click the launcher and allow it to run.
-
-If the desktop icon does not open the browser, check these log files and send their contents:
-
-```text
-data/logs/desktop-launcher.log
-data/logs/launcher.log
-data/logs/server.log
-```
-
-The launcher logs show the desktop environment PATH, whether `node`, `npm`, `firefox`, and `xdg-open` were found, every server readiness attempt, stale PID-file handling, and the last server errors when startup fails.
+Then use the `Start Gate Passage Planner Server` and `Stop Gate Passage Planner Server` icons on your desktop. Depending on your desktop settings, you may need to right-click each launcher and allow it to run.
 
 ## macOS Desktop Launcher
 
@@ -168,7 +165,7 @@ Provider caches under `data/cache/` are also ignored.
 cd gate-passage-planner
 git pull
 ./scripts/install-lubuntu.sh
-./scripts/start-passage-planner.sh
+systemctl --user restart gate-passage-planner
 ```
 
 ## Notes On Data Limits
