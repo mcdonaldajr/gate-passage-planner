@@ -100,6 +100,16 @@ To create a desktop launcher on Lubuntu:
 
 Then use the `Gate Passage Planner` icon on your desktop. Depending on your desktop settings, you may need to right-click the launcher and allow it to run.
 
+If the desktop icon does not open the browser, check these log files and send their contents:
+
+```text
+data/logs/desktop-launcher.log
+data/logs/launcher.log
+data/logs/server.log
+```
+
+The launcher logs show the desktop environment PATH, whether `node`, `npm`, `firefox`, and `xdg-open` were found, every server readiness attempt, stale PID-file handling, and the last server errors when startup fails.
+
 ## macOS Desktop Launcher
 
 From the project directory:

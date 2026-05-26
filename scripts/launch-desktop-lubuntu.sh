@@ -10,20 +10,67 @@ LOCAL_URL="http://127.0.0.1:${PORT}"
 
 mkdir -p "$LOG_DIR"
 exec >>"$LOG_DIR/desktop-launcher.log" 2>&1
+trap 'echo "$(date "+%Y-%m-%dT%H:%M:%S%z") ERROR: desktop wrapper failed at line ${LINENO} with exit code $?"' ERR
 
-echo "$(date): launching Gate Passage Planner desktop icon"
+timestamp() {
+  date "+%Y-%m-%dT%H:%M:%S%z"
+}
 
-"$APP_DIR/scripts/start-passage-planner.sh" --desktop
+log() {
+  echo "$(timestamp) $*"
+}
 
-for _ in {1..40}; do
-  if command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 "$LOCAL_URL" >/dev/null 2>&1; then
+server_responds() {
+  if command -v node >/dev/null 2>&1; then
+    node -e "const http=require('http');const req=http.get('${LOCAL_URL}',res=>{res.resume();process.exit(res.statusCode<500?0:1)});req.on('error',()=>process.exit(1));req.setTimeout(1000,()=>{req.destroy();process.exit(1)});" >/dev/null 2>&1
+    return $?
+  fi
+  command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 "$LOCAL_URL" >/dev/null 2>&1
+}
+
+open_browser() {
+  if command -v firefox >/dev/null 2>&1; then
+    log "Opening Firefox at $LOCAL_URL"
+    firefox "$LOCAL_URL" >/dev/null 2>&1 &
+  elif command -v xdg-open >/dev/null 2>&1; then
+    log "Opening xdg-open at $LOCAL_URL"
+    xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
+  else
+    log "ERROR: neither firefox nor xdg-open is available. Open $LOCAL_URL manually."
+    return 0
+  fi
+}
+
+log "desktop wrapper invoked"
+log "APP_DIR=$APP_DIR"
+log "PATH=$PATH"
+log "LOCAL_URL=$LOCAL_URL"
+
+if "$APP_DIR/scripts/start-passage-planner.sh" --desktop; then
+  log "start-passage-planner.sh returned successfully"
+else
+  status=$?
+  log "ERROR: start-passage-planner.sh failed with exit code $status"
+  if [ -f "$LOG_DIR/launcher.log" ]; then
+    log "Last 80 lines of launcher.log:"
+    tail -80 "$LOG_DIR/launcher.log" || true
+  fi
+  exit "$status"
+fi
+
+ready=0
+for attempt in {1..40}; do
+  if server_responds; then
+    log "Wrapper readiness check passed on attempt $attempt"
+    ready=1
     break
   fi
+  log "Wrapper readiness check attempt $attempt failed"
   sleep 0.25
 done
 
-if command -v firefox >/dev/null 2>&1; then
-  firefox "$LOCAL_URL" >/dev/null 2>&1 &
-else
-  xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
+if [ "$ready" -ne 1 ]; then
+  log "WARNING: opening browser even though server did not answer yet"
 fi
+
+open_browser
