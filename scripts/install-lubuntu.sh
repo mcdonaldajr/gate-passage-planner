@@ -19,7 +19,7 @@ if ! command -v firefox >/dev/null 2>&1; then
 fi
 
 mkdir -p data/cache
-chmod +x scripts/start-passage-planner.sh scripts/start-passage-planner-lan.sh scripts/stop-passage-planner.sh scripts/create-desktop-launcher.sh scripts/launch-desktop-lubuntu.sh
+chmod +x scripts/start-passage-planner.sh scripts/start-passage-planner-lan.sh scripts/stop-passage-planner.sh scripts/create-desktop-launcher.sh scripts/launch-desktop-lubuntu.sh scripts/run-server-lubuntu.sh
 
 if [ ! -f data/app-settings.json ]; then
   cp data/app-settings.example.json data/app-settings.json

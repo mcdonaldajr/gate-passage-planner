@@ -7,7 +7,7 @@ LAUNCHER="${DESKTOP_DIR}/Gate Passage Planner.desktop"
 DESKTOP_WRAPPER="${APP_DIR}/scripts/launch-desktop-lubuntu.sh"
 
 mkdir -p "$DESKTOP_DIR"
-chmod +x "$APP_DIR/scripts/start-passage-planner.sh" "$DESKTOP_WRAPPER"
+chmod +x "$APP_DIR/scripts/start-passage-planner.sh" "$APP_DIR/scripts/run-server-lubuntu.sh" "$DESKTOP_WRAPPER"
 
 cat > "$LAUNCHER" <<DESKTOP
 [Desktop Entry]
