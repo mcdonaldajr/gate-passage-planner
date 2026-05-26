@@ -5,6 +5,7 @@ npm-debug.log*
 # Local secrets and provider cache
 data/app-settings.json
 data/cache/
+data/logs/
 data/*.pid
 data/sample-passage.json
 

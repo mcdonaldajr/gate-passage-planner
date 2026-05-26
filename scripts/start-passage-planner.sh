@@ -30,15 +30,25 @@ fi
 
 if [ "$HOST" = "0.0.0.0" ] && [ -n "${LAN_IP:-}" ]; then
   DISPLAY_URL="http://${LAN_IP}:${PORT}"
+elif [ "$HOST" = "0.0.0.0" ]; then
+  DISPLAY_URL=""
 else
   DISPLAY_URL="http://${HOST}:${PORT}"
 fi
 
 mkdir -p "$LOG_DIR"
 
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" >/dev/null 2>&1; then
-  echo "Gate Passage Planner is already running."
+server_responds() {
+  command -v curl >/dev/null 2>&1 && curl -fsS --max-time 1 "$LOCAL_URL" >/dev/null 2>&1
+}
+
+if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" >/dev/null 2>&1 && server_responds; then
+  echo "Gate Passage Planner is already running at $LOCAL_URL."
 else
+  if [ -f "$PID_FILE" ]; then
+    echo "Removing stale server PID file."
+    rm -f "$PID_FILE"
+  fi
   cd "$APP_DIR"
   echo "Starting Gate Passage Planner on ${HOST}:${PORT}"
   HOST="$HOST" PORT="$PORT" nohup npm start >"$LOG_DIR/server.log" 2>&1 &
@@ -46,15 +56,21 @@ else
 fi
 
 for _ in {1..30}; do
-  if command -v curl >/dev/null 2>&1 && curl -fsS "$LOCAL_URL" >/dev/null 2>&1; then
+  if server_responds; then
     break
   fi
   sleep 0.2
 done
 
 echo "Local URL: $LOCAL_URL"
-if [ "$HOST" = "0.0.0.0" ]; then
+if [ "$HOST" = "0.0.0.0" ] && [ -n "${DISPLAY_URL:-}" ]; then
   echo "LAN URL:   $DISPLAY_URL"
+elif [ "$HOST" = "0.0.0.0" ]; then
+  echo "LAN URL:   unavailable until a network address is assigned"
+fi
+
+if [ "$DESKTOP_MODE" -eq 1 ]; then
+  exit 0
 fi
 
 if command -v open >/dev/null 2>&1; then
@@ -63,8 +79,4 @@ elif command -v firefox >/dev/null 2>&1; then
   firefox "$LOCAL_URL" >/dev/null 2>&1 &
 else
   xdg-open "$LOCAL_URL" >/dev/null 2>&1 &
-fi
-
-if [ "$DESKTOP_MODE" -eq 1 ]; then
-  exit 0
 fi
