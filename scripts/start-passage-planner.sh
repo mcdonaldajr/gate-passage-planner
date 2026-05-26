@@ -62,7 +62,11 @@ if command -v hostname >/dev/null 2>&1; then
 fi
 
 if [ -z "${LAN_IP:-}" ] && command -v ip >/dev/null 2>&1; then
-  LAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')"
+  LAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}' || true)"
+fi
+
+if [ -z "${LAN_IP:-}" ] && command -v ip >/dev/null 2>&1; then
+  LAN_IP="$(ip -4 addr show scope global 2>/dev/null | awk '/inet / {sub(/\/.*/, "", $2); print $2; exit}' || true)"
 fi
 
 if [ -z "${LAN_IP:-}" ] && command -v ipconfig >/dev/null 2>&1; then
