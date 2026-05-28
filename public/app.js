@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.2";
+const webVersion = "0.1.3";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time" },
@@ -245,19 +245,19 @@ const locationConstants = {
     location: "Sound of Mull",
     latitude: "56.47074",
     longitude: "-5.70740",
-    floodSet: "N",
-    ebbSet: "S",
+    floodSet: "NW",
+    ebbSet: "SE",
     springPeakFlow: "3.0",
     neapPeakFlow: "1.0",
-    source: "User almanac extract: constant +0015 Oban, heights at Craignure MHWS 4.0 MHWN 3.0 MLWN 1.7 MLWS 0.6; north-going -0545 Oban, south-going +0025 Oban; 3 kn springs, 1 kn neaps; Craignure coordinates from Trove; slack durations not supplied",
+    source: "User almanac extract plus web direction check: constant +0015 Oban, heights at Craignure MHWS 4.0 MHWN 3.0 MLWN 1.7 MLWS 0.6; NW-going flood -0545 Oban, SE-going ebb +0025 Oban; 3 kn springs, 1 kn neaps; slack duration not supplied, modeled as zero",
     floodSpringAfter: "-5:45:00",
-    floodNeapAfter: "",
-    floodSpringSlack: "",
-    floodNeapSlack: "",
+    floodNeapAfter: "-5:45:00",
+    floodSpringSlack: "0:00:00",
+    floodNeapSlack: "0:00:00",
     ebbSpringAfter: "0:25:00",
-    ebbNeapAfter: "",
-    ebbSpringSlack: "",
-    ebbNeapSlack: ""
+    ebbNeapAfter: "0:25:00",
+    ebbSpringSlack: "0:00:00",
+    ebbNeapSlack: "0:00:00"
   },
   "Kyle of Loch Alsh": {
     location: "Kyle of Loch Alsh",
@@ -850,15 +850,24 @@ function midpointTime(start, end) {
 }
 
 function interpolateMinutes(location, springKey, neapKey, springFactor) {
+  const hasSpring = String(location[springKey] ?? "").trim() !== "";
+  const hasNeap = String(location[neapKey] ?? "").trim() !== "";
+  if (!hasSpring && !hasNeap) return 0;
   const spring = durationToMinutes(location[springKey]);
   const neap = durationToMinutes(location[neapKey]);
+  if (!hasSpring) return neap;
+  if (!hasNeap) return spring;
   return neap + (Number(springFactor || 0) * (spring - neap));
 }
 
 function interpolateNumber(location, springKey, neapKey, springFactor) {
-  const spring = Number(location[springKey]);
-  const neap = Number(location[neapKey]);
-  if (!Number.isFinite(spring) || !Number.isFinite(neap)) return Number.NaN;
+  const hasSpring = String(location[springKey] ?? "").trim() !== "";
+  const hasNeap = String(location[neapKey] ?? "").trim() !== "";
+  const spring = hasSpring ? Number(location[springKey]) : Number.NaN;
+  const neap = hasNeap ? Number(location[neapKey]) : Number.NaN;
+  if (!Number.isFinite(spring) && !Number.isFinite(neap)) return Number.NaN;
+  if (!Number.isFinite(spring)) return neap;
+  if (!Number.isFinite(neap)) return spring;
   return neap + (Number(springFactor || 0) * (spring - neap));
 }
 
@@ -1065,6 +1074,27 @@ function interpolateTidalFlow(weatherArray, tidesArray, settings) {
   const result = [resultHeaders];
   const tideData = tidesArray.slice(1);
   const COL = { windDir: 6, bForce: 9 };
+  const cycleMs = settings.fallbackCycleHours * 60 * 60 * 1000;
+  const phaseStarts = tideData.flatMap((row) => {
+    const peakRate = Number(row[tIdx("Peak Flow (kn)")]);
+    const floodStart = parseTime(row[tIdx("Flood Commences")]);
+    const ebbStart = parseTime(row[tIdx("Ebb Commences")]);
+    const floodDir = String(row[tIdx("Peak Flood Dir (deg)")]).replace(/[^\d.-]/g, "");
+    const ebbDir = String(row[tIdx("Peak Ebb Dir (deg)")]).replace(/[^\d.-]/g, "");
+    const starts = [];
+    if (Number.isFinite(floodStart) && floodDir !== "") {
+      starts.push({ status: "Flood", dir: floodDir, start: floodStart, peakRate });
+    }
+    if (Number.isFinite(ebbStart) && ebbDir !== "") {
+      starts.push({ status: "Ebb", dir: ebbDir, start: ebbStart, peakRate });
+    }
+    return starts;
+  }).sort((a, b) => a.start - b.start);
+  const expandedPhaseStarts = [
+    ...phaseStarts.map((phase) => ({ ...phase, start: phase.start - cycleMs })),
+    ...phaseStarts,
+    ...phaseStarts.map((phase) => ({ ...phase, start: phase.start + cycleMs }))
+  ].sort((a, b) => a.start - b.start);
 
   for (let i = 1; i < weatherArray.length; i++) {
     const rawRow = weatherArray[i];
@@ -1075,32 +1105,11 @@ function interpolateTidalFlow(weatherArray, tidesArray, settings) {
     let tideStatus = "Slack";
     let activePhase = null;
 
-    for (let j = 0; j < tideData.length; j++) {
-      const row = tideData[j];
-      const peakRate = Number(row[tIdx("Peak Flow (kn)")]);
-      const fStart = parseTime(row[tIdx("Flood Commences")]);
-      const eStart = parseTime(row[tIdx("Ebb Commences")]);
-      const nextEStart = j + 1 < tideData.length
-        ? parseTime(tideData[j + 1][tIdx("Ebb Commences")])
-        : eStart + (settings.fallbackCycleHours * 60 * 60 * 1000);
-      const floodDir = String(row[tIdx("Peak Flood Dir (deg)")]).replace(/[^\d.-]/g, "");
-      const ebbDir = String(row[tIdx("Peak Ebb Dir (deg)")]).replace(/[^\d.-]/g, "");
-
-      if (j === 0) {
-        const previousFloodStart = fStart - (settings.fallbackCycleHours * 60 * 60 * 1000);
-        if (wTime >= previousFloodStart && wTime < eStart) {
-          activePhase = { status: "Flood", dir: floodDir, start: previousFloodStart, end: eStart, peakRate };
-          break;
-        }
-      }
-
-      if (wTime >= eStart && wTime < fStart) {
-        activePhase = { status: "Ebb", dir: ebbDir, start: eStart, end: fStart, peakRate };
-        break;
-      }
-
-      if (wTime >= fStart && wTime < nextEStart) {
-        activePhase = { status: "Flood", dir: floodDir, start: fStart, end: nextEStart, peakRate };
+    for (let j = 0; j < expandedPhaseStarts.length; j++) {
+      const phase = expandedPhaseStarts[j];
+      const nextPhase = expandedPhaseStarts[j + 1];
+      if (wTime >= phase.start && (!nextPhase || wTime < nextPhase.start)) {
+        activePhase = { ...phase, end: nextPhase?.start ?? phase.start + (settings.fallbackEbbHours * 60 * 60 * 1000) };
         break;
       }
     }
