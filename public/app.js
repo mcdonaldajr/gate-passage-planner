@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.1";
+const webVersion = "0.1.2";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time" },
@@ -1803,7 +1803,7 @@ async function loadLocationConstants() {
     applyLocationConstants(saved);
     renderLocationConstantsTable();
     rebuildTidesFromLocationConstants();
-    $("locationConstantsStatus").textContent = "Loaded location constants from data/location-constants.json.";
+    $("locationConstantsStatus").textContent = "Loaded location constants.";
   } catch (error) {
     $("locationConstantsStatus").textContent = `Load failed: ${error.message}.`;
   }
@@ -1824,15 +1824,46 @@ function applyLocationConstants(saved) {
   syncGateOptions();
 }
 
+function syncLocationConstantsFromTable() {
+  const updated = {};
+  const rows = $("locationTable").querySelectorAll("tbody tr");
+  for (const row of rows) {
+    const inputs = [...row.querySelectorAll("input[data-location][data-key]")];
+    if (!inputs.length) continue;
+    const values = {};
+    for (const input of inputs) values[input.dataset.key] = input.value.trim();
+    const originalName = inputs[0].dataset.location;
+    const name = values.location || originalName;
+    if (!name) throw new Error("Location name cannot be blank");
+    if (updated[name]) throw new Error(`Duplicate location "${name}"`);
+    updated[name] = defaultLocationValues(name);
+    for (const column of locationConstantColumns) {
+      if (column.key === "location" || column.type === "link" || column.type === "actions") continue;
+      if (Object.prototype.hasOwnProperty.call(values, column.key)) {
+        updated[name][column.key] = values[column.key];
+      }
+    }
+    updated[name].location = name;
+  }
+  for (const name of Object.keys(locationConstants)) delete locationConstants[name];
+  Object.assign(locationConstants, updated);
+  syncGateOptions($("gate").value);
+}
+
 async function saveLocationConstants() {
   try {
+    syncLocationConstantsFromTable();
+    renderLocationConstantsTable();
+    rebuildTidesFromLocationConstants();
     const response = await fetch("/api/location-constants", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(locationConstants)
     });
     if (!response.ok) throw new Error(`server returned ${response.status}`);
-    $("locationConstantsStatus").textContent = "Saved location constants to data/location-constants.json.";
+    const result = await response.json().catch(() => ({}));
+    const target = result.path ? result.path.replace(/^.*\/data\//, "data/") : "data/user-location-constants.json";
+    $("locationConstantsStatus").textContent = `Saved location constants to ${target}.`;
   } catch (error) {
     $("locationConstantsStatus").textContent = `Save failed: ${error.message}.`;
   }

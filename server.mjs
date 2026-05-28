@@ -7,11 +7,12 @@ const publicDir = join(root, "public");
 const logDir = join(root, "data", "logs");
 const weatherLogPath = join(logDir, "weather-refresh.log");
 const cacheDir = join(root, "data", "cache");
-const locationConstantsPath = join(root, "data", "location-constants.json");
+const bundledLocationConstantsPath = join(root, "data", "location-constants.json");
+const userLocationConstantsPath = join(root, "data", "user-location-constants.json");
 const appSettingsPath = join(root, "data", "app-settings.json");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
-const serverVersion = "0.1.1";
+const serverVersion = "0.1.2";
 const serverStartedAt = new Date().toISOString();
 const weatherTtlMs = Number(process.env.WEATHER_CACHE_HOURS || 1) * 60 * 60 * 1000;
 const weatherRefreshGuardMs = Number(process.env.WEATHER_REFRESH_GUARD_MINUTES || 10) * 60 * 1000;
@@ -376,11 +377,21 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/locations") return json(res, 200, locations);
     if (url.pathname === "/api/location-constants" && req.method === "GET") {
       try {
-        const body = await readFile(locationConstantsPath, "utf8");
+        const body = await readFile(userLocationConstantsPath, "utf8");
         res.writeHead(200, { "content-type": contentTypes[".json"] });
         res.end(body);
       } catch (error) {
-        if (error.code === "ENOENT") return json(res, 404, { error: "No saved location constants file yet" });
+        if (error.code === "ENOENT") {
+          try {
+            const body = await readFile(bundledLocationConstantsPath, "utf8");
+            res.writeHead(200, { "content-type": contentTypes[".json"] });
+            res.end(body);
+          } catch (fallbackError) {
+            if (fallbackError.code === "ENOENT") return json(res, 404, { error: "No saved location constants file yet" });
+            throw fallbackError;
+          }
+          return;
+        }
         throw error;
       }
       return;
@@ -388,8 +399,8 @@ const server = createServer(async (req, res) => {
     if (url.pathname === "/api/location-constants" && req.method === "POST") {
       const body = await readRequestJson(req);
       await mkdir(join(root, "data"), { recursive: true });
-      await writeFile(locationConstantsPath, JSON.stringify(body, null, 2));
-      return json(res, 200, { ok: true, path: locationConstantsPath });
+      await writeFile(userLocationConstantsPath, JSON.stringify(body, null, 2));
+      return json(res, 200, { ok: true, path: userLocationConstantsPath });
     }
     if (url.pathname === "/api/settings" && req.method === "GET") {
       const settings = await readAppSettings();

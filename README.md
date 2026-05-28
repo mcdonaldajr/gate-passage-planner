@@ -23,7 +23,7 @@ cd gate-passage-planner
 ./scripts/install-lubuntu.sh
 ```
 
-The install script checks for Node.js, creates local data folders, installs a user-level systemd service, and creates `data/app-settings.json` from `data/app-settings.example.json` if needed.
+The install script checks for Node.js, creates local data folders, installs a user-level systemd service, and creates `data/app-settings.json` from `data/app-settings.example.json` if needed. Location constants saved in the app are stored in `data/user-location-constants.json`, which is local user data and is not overwritten by software updates.
 
 ## Start The App
 
