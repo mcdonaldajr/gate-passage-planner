@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.4";
+const webVersion = "0.1.5";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time" },
@@ -929,9 +929,9 @@ function tidesForGate(tidesArray, gateName) {
       - interpolateMinutes(base, "floodSpringAfter", "floodNeapAfter", springFactor);
     const ebbShift = interpolateMinutes(selected, "ebbSpringAfter", "ebbNeapAfter", springFactor)
       - interpolateMinutes(base, "ebbSpringAfter", "ebbNeapAfter", springFactor);
-    const baseSlack = interpolateMinutes(base, "floodSpringSlack", "floodNeapSlack", springFactor);
-    const selectedSlack = interpolateMinutes(selected, "floodSpringSlack", "floodNeapSlack", springFactor);
-    const slackScale = baseSlack ? selectedSlack / baseSlack : 1;
+    const selectedFloodSlack = interpolateMinutes(selected, "floodSpringSlack", "floodNeapSlack", springFactor);
+    const selectedEbbSlack = interpolateMinutes(selected, "ebbSpringSlack", "ebbNeapSlack", springFactor);
+    const selectedAverageSlack = (selectedFloodSlack + selectedEbbSlack) / 2;
 
     for (const column of timeColumns) {
       const shift = column.startsWith("Flood") || column === "Peak Flood Time" ? floodShift : ebbShift;
@@ -941,7 +941,7 @@ function tidesForGate(tidesArray, gateName) {
     next[idx("Peak Flood (Set)")] = selected.floodSet;
     next[idx("Peak Ebb Dir (deg)")] = cardinalToDegrees(selected.ebbSet);
     next[idx("Peak Ebb (Set)")] = selected.ebbSet;
-    next[idx("Slack Duration")] = scaleDurationString(next[idx("Slack Duration")], slackScale);
+    next[idx("Slack Duration")] = minutesToDuration(selectedAverageSlack);
     next[idx("Location")] = gateName;
     return next;
   });
@@ -1619,12 +1619,8 @@ function isLocationComplete(location) {
     "neapPeakFlow",
     "floodSpringAfter",
     "floodNeapAfter",
-    "floodSpringSlack",
-    "floodNeapSlack",
     "ebbSpringAfter",
-    "ebbNeapAfter",
-    "ebbSpringSlack",
-    "ebbNeapSlack"
+    "ebbNeapAfter"
   ];
   return requiredFields.every((field) => String(location[field] ?? "").trim() !== "");
 }

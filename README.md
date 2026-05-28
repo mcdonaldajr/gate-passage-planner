@@ -172,6 +172,7 @@ systemctl --user restart gate-passage-planner
 - Open-Meteo forecast data can extend beyond the tide horizon, but the passage plan is limited by available tide data.
 - Weather cache defaults to 1 hour; manual refreshes are guarded for 10 minutes to avoid hammering providers.
 - Tide cache is once per day.
+- Location constants require latitude, longitude, flood/ebb set, spring/neap peak rates, and spring/neap flood/ebb timing offsets before a gate is selectable. Blank slack-duration fields are allowed and are treated as zero slack.
 
 ## Development
 
