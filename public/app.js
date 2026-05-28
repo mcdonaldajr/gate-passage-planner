@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.3";
+const webVersion = "0.1.4";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time" },
@@ -1090,11 +1090,29 @@ function interpolateTidalFlow(weatherArray, tidesArray, settings) {
     }
     return starts;
   }).sort((a, b) => a.start - b.start);
-  const expandedPhaseStarts = [
-    ...phaseStarts.map((phase) => ({ ...phase, start: phase.start - cycleMs })),
-    ...phaseStarts,
-    ...phaseStarts.map((phase) => ({ ...phase, start: phase.start + cycleMs }))
-  ].sort((a, b) => a.start - b.start);
+  const phaseForTime = (wTime) => {
+    if (!phaseStarts.length) return null;
+    let candidates = phaseStarts;
+    const firstStart = phaseStarts[0].start;
+    const lastStart = phaseStarts[phaseStarts.length - 1].start;
+    if (wTime < firstStart || wTime >= lastStart) {
+      candidates = phaseStarts.flatMap((phase) => {
+        const cycleOffset = Math.floor((wTime - phase.start) / cycleMs);
+        return [cycleOffset - 1, cycleOffset, cycleOffset + 1].map((offset) => ({
+          ...phase,
+          start: phase.start + (offset * cycleMs)
+        }));
+      }).sort((a, b) => a.start - b.start);
+    }
+    for (let j = 0; j < candidates.length; j++) {
+      const phase = candidates[j];
+      const nextPhase = candidates[j + 1];
+      if (wTime >= phase.start && (!nextPhase || wTime < nextPhase.start)) {
+        return { ...phase, end: nextPhase?.start ?? phase.start + (settings.fallbackEbbHours * 60 * 60 * 1000) };
+      }
+    }
+    return null;
+  };
 
   for (let i = 1; i < weatherArray.length; i++) {
     const rawRow = weatherArray[i];
@@ -1105,14 +1123,7 @@ function interpolateTidalFlow(weatherArray, tidesArray, settings) {
     let tideStatus = "Slack";
     let activePhase = null;
 
-    for (let j = 0; j < expandedPhaseStarts.length; j++) {
-      const phase = expandedPhaseStarts[j];
-      const nextPhase = expandedPhaseStarts[j + 1];
-      if (wTime >= phase.start && (!nextPhase || wTime < nextPhase.start)) {
-        activePhase = { ...phase, end: nextPhase?.start ?? phase.start + (settings.fallbackEbbHours * 60 * 60 * 1000) };
-        break;
-      }
-    }
+    activePhase = phaseForTime(wTime);
 
     if (activePhase) {
       tideStatus = activePhase.status;
