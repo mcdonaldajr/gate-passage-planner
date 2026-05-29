@@ -195,6 +195,24 @@ label {
   outline-offset: 2px;
 }
 
+.helpPopover {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 10px 28px rgba(28, 48, 64, 0.22);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.helpPopover[hidden] {
+  display: none;
+}
+
 input,
 select {
   width: 100%;

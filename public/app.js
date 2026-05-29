@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.9";
+const webVersion = "0.1.10";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -2426,6 +2426,67 @@ for (const button of document.querySelectorAll(".tabButton")) {
     if (button.dataset.tab === "about") renderAbout();
   });
 }
+
+function ensureHelpPopover() {
+  let popover = document.querySelector(".helpPopover");
+  if (!popover) {
+    popover = document.createElement("div");
+    popover.className = "helpPopover";
+    popover.hidden = true;
+    document.body.appendChild(popover);
+  }
+  return popover;
+}
+
+function showHelpPopover(icon) {
+  const text = icon.getAttribute("aria-label") || icon.getAttribute("title") || "";
+  if (!text) return;
+  const popover = ensureHelpPopover();
+  popover.textContent = text;
+  popover.hidden = false;
+  const rect = icon.getBoundingClientRect();
+  const gap = 8;
+  const width = popover.offsetWidth;
+  const height = popover.offsetHeight;
+  const left = Math.min(Math.max(12, rect.left + (rect.width / 2) - (width / 2)), window.innerWidth - width - 12);
+  const above = rect.top - height - gap;
+  const top = above > 12 ? above : Math.min(rect.bottom + gap, window.innerHeight - height - 12);
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+}
+
+function hideHelpPopover() {
+  const popover = document.querySelector(".helpPopover");
+  if (popover) popover.hidden = true;
+}
+
+document.addEventListener("pointerover", (event) => {
+  const icon = event.target.closest?.(".helpIcon");
+  if (icon) showHelpPopover(icon);
+});
+
+document.addEventListener("pointerout", (event) => {
+  if (event.target.closest?.(".helpIcon")) hideHelpPopover();
+});
+
+document.addEventListener("focusin", (event) => {
+  const icon = event.target.closest?.(".helpIcon");
+  if (icon) showHelpPopover(icon);
+});
+
+document.addEventListener("focusout", (event) => {
+  if (event.target.closest?.(".helpIcon")) hideHelpPopover();
+});
+
+document.addEventListener("click", (event) => {
+  const icon = event.target.closest?.(".helpIcon");
+  if (!icon) {
+    hideHelpPopover();
+    return;
+  }
+  event.preventDefault();
+  showHelpPopover(icon);
+});
 
 async function renderAbout() {
   $("webVersion").textContent = webVersion;
