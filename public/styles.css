@@ -158,7 +158,7 @@ main {
 
 .controls {
   display: grid;
-  grid-template-columns: minmax(130px, 180px) minmax(82px, 120px) minmax(96px, 130px) minmax(150px, 190px);
+  grid-template-columns: minmax(130px, 170px) minmax(112px, 140px) minmax(82px, 115px) minmax(96px, 125px) minmax(145px, 180px);
   gap: 8px;
   margin-bottom: 8px;
 }
@@ -221,6 +221,28 @@ select {
   background: #fff;
   color: var(--ink);
   padding: 6px 8px;
+}
+
+.directionReadout {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.directionReadout strong {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbfc;
+  color: var(--ink);
+  padding: 6px 8px;
+  font-size: 13px;
+  line-height: 1.15;
 }
 
 #courseControl.courseMismatch select {

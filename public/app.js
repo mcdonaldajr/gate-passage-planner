@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.17";
+const webVersion = "0.1.18";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -1610,6 +1610,15 @@ function directionLabel(degrees) {
   return cardinal && cardinal !== "-" ? cardinal : `${Number(degrees).toFixed(0)}°`;
 }
 
+function updateGateDirections() {
+  const output = $("gateDirections");
+  if (!output) return;
+  const location = locationConstants[$("gate").value];
+  const flood = location?.floodSet?.trim();
+  const ebb = location?.ebbSet?.trim();
+  output.textContent = flood && ebb ? `Flood ${flood} / Ebb ${ebb}` : "Direction not set";
+}
+
 function isCourseAlignedWithTideDirection(courseDeg, tideDeg) {
   if (!Number.isFinite(courseDeg) || !Number.isFinite(tideDeg)) return false;
   return angularDifference(courseDeg, tideDeg) <= 45;
@@ -1618,6 +1627,7 @@ function isCourseAlignedWithTideDirection(courseDeg, tideDeg) {
 function updateCourseDirectionWarning() {
   const control = $("courseControl");
   const warning = $("courseWarning");
+  updateGateDirections();
   if (!control || !warning) return;
   const location = locationConstants[$("gate").value];
   const course = Number($("heading").value);
@@ -2389,6 +2399,7 @@ async function refreshAll() {
 async function loadStoredData() {
   const settings = settingsFromControls();
   $("locationLabel").textContent = settings.gate;
+  updateGateDirections();
   currentWeatherRows = await loadWeatherForGate(settings);
   await refreshTides({ skipBusy: true, manualRefresh: false, silent: true });
   renderLocationConstantsTable();
