@@ -12,7 +12,7 @@ const userLocationConstantsPath = join(root, "data", "user-location-constants.js
 const appSettingsPath = join(root, "data", "app-settings.json");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
-const serverVersion = "0.1.8";
+const serverVersion = "0.1.9";
 const serverStartedAt = new Date().toISOString();
 const weatherTtlMs = Number(process.env.WEATHER_CACHE_HOURS || 1) * 60 * 60 * 1000;
 const weatherRefreshGuardMs = Number(process.env.WEATHER_REFRESH_GUARD_MINUTES || 10) * 60 * 1000;
@@ -53,6 +53,14 @@ const defaultAppSettings = {
   offwindStrenuousBft: "7",
   offwindDangerousBft: "8",
   strongFoulRatio: "0.4",
+  gustBaseLimitKn: "30",
+  gustBeatingPenaltyKn: "5",
+  gustBeamPenaltyKn: "2",
+  gustExposedWaveHeightM: "1.0",
+  gustExposedFetchPenaltyKn: "4",
+  gustWindOverTidePenaltyKn: "4",
+  gustMajorGatePenaltyKn: "7",
+  gustMajorGateTideKn: "3.0",
   windChillTempLimitC: "10",
   windChillWindLimitKmh: "4.8",
   knotsToKmh: "1.852"

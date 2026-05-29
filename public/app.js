@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.8";
+const webVersion = "0.1.9";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -448,6 +448,14 @@ let appSettings = {
   offwindStrenuousBft: "7",
   offwindDangerousBft: "8",
   strongFoulRatio: "0.4",
+  gustBaseLimitKn: "30",
+  gustBeatingPenaltyKn: "5",
+  gustBeamPenaltyKn: "2",
+  gustExposedWaveHeightM: "1.0",
+  gustExposedFetchPenaltyKn: "4",
+  gustWindOverTidePenaltyKn: "4",
+  gustMajorGatePenaltyKn: "7",
+  gustMajorGateTideKn: "3.0",
   windChillTempLimitC: "10",
   windChillWindLimitKmh: "4.8",
   knotsToKmh: "1.852"
@@ -477,6 +485,14 @@ const calculationSettingIds = [
   "offwindStrenuousBft",
   "offwindDangerousBft",
   "strongFoulRatio",
+  "gustBaseLimitKn",
+  "gustBeatingPenaltyKn",
+  "gustBeamPenaltyKn",
+  "gustExposedWaveHeightM",
+  "gustExposedFetchPenaltyKn",
+  "gustWindOverTidePenaltyKn",
+  "gustMajorGatePenaltyKn",
+  "gustMajorGateTideKn",
   "windChillTempLimitC",
   "windChillWindLimitKmh",
   "knotsToKmh"
@@ -501,6 +517,14 @@ function competentComfortSettings() {
     offwindStrenuousBft: settingNumber("offwindStrenuousBft"),
     offwindDangerousBft: settingNumber("offwindDangerousBft"),
     strongFoulRatio: settingNumber("strongFoulRatio"),
+    gustBaseLimitKn: settingNumber("gustBaseLimitKn"),
+    gustBeatingPenaltyKn: settingNumber("gustBeatingPenaltyKn"),
+    gustBeamPenaltyKn: settingNumber("gustBeamPenaltyKn"),
+    gustExposedWaveHeightM: settingNumber("gustExposedWaveHeightM"),
+    gustExposedFetchPenaltyKn: settingNumber("gustExposedFetchPenaltyKn"),
+    gustWindOverTidePenaltyKn: settingNumber("gustWindOverTidePenaltyKn"),
+    gustMajorGatePenaltyKn: settingNumber("gustMajorGatePenaltyKn"),
+    gustMajorGateTideKn: settingNumber("gustMajorGateTideKn"),
     beatingStrenuousWaveM: settingNumber("beatingStrenuousWaveM"),
     beatingDangerousWaveM: settingNumber("beatingDangerousWaveM"),
     offwindStrenuousWaveM: settingNumber("offwindStrenuousWaveM"),
@@ -642,14 +666,60 @@ function angularDifference(a, b) {
   return diff;
 }
 
-function checkWindComfort(bft, pos, settings) {
-  const force = Number(bft);
-  if (pos === "beating") {
-    if (force >= settings.beatingDangerousBft) return "Dangerous";
-    if (force >= settings.beatingStrenuousBft) return "Strenuous";
-    return force >= settings.beatingAcceptableBft ? "Acceptable" : "Pleasant";
+function gustPointPenalty(pos, settings) {
+  if (pos === "beating") return settings.gustBeatingPenaltyKn;
+  if (pos === "close reach" || pos === "beam reach") return settings.gustBeamPenaltyKn;
+  return 0;
+}
+
+function gustLimitForRow(rawRow, pos, tideStatus, tideRate, tideDirDeg, settings) {
+  const COL = { gust: 5, windDir: 6, wH: 12, sH: 17 };
+  const penalties = [];
+  const pointPenalty = gustPointPenalty(pos, settings);
+  if (pointPenalty > 0) penalties.push({ label: pos, value: pointPenalty });
+
+  const combinedSea = Math.sqrt((Number(rawRow[COL.wH] || 0) ** 2) + (Number(rawRow[COL.sH] || 0) ** 2));
+  if (combinedSea >= settings.gustExposedWaveHeightM) {
+    penalties.push({ label: "exposed sea", value: settings.gustExposedFetchPenaltyKn });
   }
-  return force >= settings.offwindDangerousBft ? "Dangerous" : force >= settings.offwindStrenuousBft ? "Strenuous" : "Acceptable";
+
+  const windDirFrom = Number(rawRow[COL.windDir]);
+  const windTo = (windDirFrom + 180) % 360;
+  const tideAgainstWind = tideStatus !== "Slack"
+    && Math.abs(Number(tideRate || 0)) > settings.slackThreshold
+    && Number.isFinite(windDirFrom)
+    && Number.isFinite(tideDirDeg)
+    && angularDifference(windTo, tideDirDeg) >= 135;
+  if (tideAgainstWind) {
+    const penalty = Math.abs(Number(tideRate || 0)) >= settings.gustMajorGateTideKn
+      ? settings.gustMajorGatePenaltyKn
+      : settings.gustWindOverTidePenaltyKn;
+    penalties.push({ label: "wind over tide", value: penalty });
+  }
+
+  const totalPenalty = penalties.reduce((sum, item) => sum + item.value, 0);
+  return {
+    gust: Number(rawRow[COL.gust] || 0),
+    limit: Math.max(0, settings.gustBaseLimitKn - totalPenalty),
+    penalties
+  };
+}
+
+function checkWindComfort(bft, pos, settings, gustContext = null) {
+  const force = Number(bft);
+  let status;
+  if (pos === "beating") {
+    if (force >= settings.beatingDangerousBft) status = "Dangerous";
+    else if (force >= settings.beatingStrenuousBft) status = "Strenuous";
+    else status = force >= settings.beatingAcceptableBft ? "Acceptable" : "Pleasant";
+  } else {
+    status = force >= settings.offwindDangerousBft ? "Dangerous" : force >= settings.offwindStrenuousBft ? "Strenuous" : "Acceptable";
+  }
+  if (gustContext && gustContext.gust > 0 && gustContext.gust >= gustContext.limit) {
+    const reasons = gustContext.penalties.map((item) => item.label).join(", ");
+    return `Dangerous (gust ${gustContext.gust.toFixed(1)} >= ${gustContext.limit.toFixed(1)} kn${reasons ? `; ${reasons}` : ""})`;
+  }
+  return status;
 }
 
 function checkWaveComfortOptimized(rawRow, pos, tideStatus, tideRate, tideDirDeg, settings) {
@@ -715,10 +785,10 @@ function checkTideRating(sogOnCourse, yachtSpeed, settings) {
 }
 
 function overallRating(wind, wave, tide) {
-  if (wind === "Dangerous" || wave.includes("Dangerous") || tide === "Set Back" || tide === "Strong Foul") {
+  if (wind.includes("Dangerous") || wave.includes("Dangerous") || tide === "Set Back" || tide === "Strong Foul") {
     return "Unacceptable";
   }
-  if (wind === "Strenuous" || wave.includes("Strenuous") || wave.includes("Hobby-Horsing") || tide === "Adverse") {
+  if (wind.includes("Strenuous") || wave.includes("Strenuous") || wave.includes("Hobby-Horsing") || tide === "Adverse") {
     return "Uncomfortable";
   }
   if (tide === "Fair Tide" && wave === "Smooth" && wind === "Acceptable") return "Pleasant";
@@ -1143,7 +1213,8 @@ function interpolateTidalFlow(weatherArray, tidesArray, settings) {
     }
 
     const tideRating = checkTideRating(nav.onCourse, settings.yachtSpeed, settings);
-    const windRating = checkWindComfort(rawRow[COL.bForce], pointOfSail, settings);
+    const gustContext = gustLimitForRow(rawRow, pointOfSail, tideStatus, tideRate, Number(tideDir), settings);
+    const windRating = checkWindComfort(rawRow[COL.bForce], pointOfSail, settings, gustContext);
     const waveRating = checkWaveComfortOptimized(rawRow, pointOfSail, tideStatus, tideRate, Number(tideDir), settings);
 
     result.push([
@@ -1393,7 +1464,13 @@ function passageCellClass(source, row, headers) {
   const classFor = (severity) => severity === "stop" ? "causeStop" : severity === "warn" ? "causeWarn" : "";
 
   if (source === "Overall") return "";
-  if (windSeverity && (source === "Wind (kn)" || source === "Wind Rating")) return classFor(windSeverity);
+  if (windSeverity) {
+    const windRating = String(value("Wind Rating") || "");
+    const gustDriven = windRating.includes("gust");
+    if (source === "Wind Rating") return classFor(windSeverity);
+    if (gustDriven && source === "Gust (kn)") return classFor(windSeverity);
+    if (!gustDriven && source === "Wind (kn)") return classFor(windSeverity);
+  }
   if (waveSeverity && (source === "Wave (m)" || source === "Swell (m)" || source === "Wave Rating")) return classFor(waveSeverity);
   if (tideSeverity && ["Tide Rate (kn)", "Tide Dir (deg)", "Tide Status", "Rel: Boat-Tide", "SOG (OnCourse)"].includes(source)) {
     return classFor(tideSeverity);
@@ -1840,6 +1917,14 @@ function comfortConstantsRows() {
     "Offwind Strenuous Bft",
     "Offwind Dangerous Bft",
     "Strong Foul Ratio",
+    "Gust Base Limit (kn)",
+    "Gust Beating Penalty (kn)",
+    "Gust Beam Penalty (kn)",
+    "Exposed Sea Height (m)",
+    "Exposed Sea Penalty (kn)",
+    "Wind-Over-Tide Penalty (kn)",
+    "Major Gate Penalty (kn)",
+    "Major Gate Tide (kn)",
     "Beating Strenuous Wave (m)",
     "Beating Dangerous Wave (m)",
     "Offwind Strenuous Wave (m)",
@@ -1856,6 +1941,14 @@ function comfortConstantsRows() {
       settings.offwindStrenuousBft.toFixed(0),
       settings.offwindDangerousBft.toFixed(0),
       settings.strongFoulRatio.toFixed(2),
+      settings.gustBaseLimitKn.toFixed(0),
+      settings.gustBeatingPenaltyKn.toFixed(0),
+      settings.gustBeamPenaltyKn.toFixed(0),
+      settings.gustExposedWaveHeightM.toFixed(1),
+      settings.gustExposedFetchPenaltyKn.toFixed(0),
+      settings.gustWindOverTidePenaltyKn.toFixed(0),
+      settings.gustMajorGatePenaltyKn.toFixed(0),
+      settings.gustMajorGateTideKn.toFixed(1),
       settings.beatingStrenuousWaveM.toFixed(2),
       settings.beatingDangerousWaveM.toFixed(2),
       settings.offwindStrenuousWaveM.toFixed(2),

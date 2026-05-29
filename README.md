@@ -173,6 +173,7 @@ systemctl --user restart gate-passage-planner
 - Weather cache defaults to 1 hour; manual refreshes are guarded for 10 minutes to avoid hammering providers.
 - Tide cache is once per day.
 - Location constants require latitude, longitude, flood/ebb set, spring/neap peak rates, and spring/neap flood/ebb timing offsets before a gate is selectable. Blank slack-duration fields are allowed and are treated as zero slack.
+- Wind comfort uses steady wind Beaufort thresholds plus a dynamic gust no-go overlay. The gust limit starts from a configurable base and deducts penalties for point of sail, exposed sea state inferred from combined forecast wave/swell height, and wind-over-tide conditions.
 
 ## Development
 

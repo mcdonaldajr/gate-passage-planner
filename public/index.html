@@ -318,6 +318,30 @@
           <label><span class="labelText">Strong foul ratio<span class="helpIcon" tabindex="0" aria-label="If tide-adjusted speed over ground on course falls below this fraction of boat speed, the tide rating becomes Strong Foul. For example, 0.4 means less than 40% of normal progress." title="If tide-adjusted speed over ground on course falls below this fraction of boat speed, the tide rating becomes Strong Foul. For example, 0.4 means less than 40% of normal progress.">?</span></span>
             <input id="strongFoulRatio" type="number" value="0.4" min="0" max="1" step="0.05">
           </label>
+          <label><span class="labelText">Gust base limit (kn)<span class="helpIcon" tabindex="0" aria-label="Baseline maximum forecast gust before contextual penalties are applied. The default 30 kn represents ideal sheltered/downwind planning conditions for this boat model." title="Baseline maximum forecast gust before contextual penalties are applied. The default 30 kn represents ideal sheltered/downwind planning conditions for this boat model.">?</span></span>
+            <input id="gustBaseLimitKn" type="number" value="30" min="0" step="1">
+          </label>
+          <label><span class="labelText">Gust beating penalty (kn)<span class="helpIcon" tabindex="0" aria-label="Deducted from the gust no-go limit when beating. This accounts for increased apparent wind and harder boat handling." title="Deducted from the gust no-go limit when beating. This accounts for increased apparent wind and harder boat handling.">?</span></span>
+            <input id="gustBeatingPenaltyKn" type="number" value="5" min="0" step="1">
+          </label>
+          <label><span class="labelText">Gust beam penalty (kn)<span class="helpIcon" tabindex="0" aria-label="Deducted from the gust no-go limit on close or beam reach. Broad reach and running use no point-of-sail gust penalty." title="Deducted from the gust no-go limit on close or beam reach. Broad reach and running use no point-of-sail gust penalty.">?</span></span>
+            <input id="gustBeamPenaltyKn" type="number" value="2" min="0" step="1">
+          </label>
+          <label><span class="labelText">Exposed sea height (m)<span class="helpIcon" tabindex="0" aria-label="Combined forecast wave/swell height at or above this value is treated as exposed/large-fetch sea state for the gust no-go calculation." title="Combined forecast wave/swell height at or above this value is treated as exposed/large-fetch sea state for the gust no-go calculation.">?</span></span>
+            <input id="gustExposedWaveHeightM" type="number" value="1.0" min="0" step="0.1">
+          </label>
+          <label><span class="labelText">Exposed sea penalty (kn)<span class="helpIcon" tabindex="0" aria-label="Deducted from the gust no-go limit when forecast combined wave/swell height indicates exposed sea state. This replaces any attempt to infer onshore/offshore wind." title="Deducted from the gust no-go limit when forecast combined wave/swell height indicates exposed sea state. This replaces any attempt to infer onshore/offshore wind.">?</span></span>
+            <input id="gustExposedFetchPenaltyKn" type="number" value="4" min="0" step="1">
+          </label>
+          <label><span class="labelText">Wind-over-tide penalty (kn)<span class="helpIcon" tabindex="0" aria-label="Deducted from the gust no-go limit when wind direction opposes a moderate tidal stream." title="Deducted from the gust no-go limit when wind direction opposes a moderate tidal stream.">?</span></span>
+            <input id="gustWindOverTidePenaltyKn" type="number" value="4" min="0" step="1">
+          </label>
+          <label><span class="labelText">Major gate penalty (kn)<span class="helpIcon" tabindex="0" aria-label="Deducted instead of the moderate wind-over-tide penalty when the opposing stream is at or above the major-gate tide threshold." title="Deducted instead of the moderate wind-over-tide penalty when the opposing stream is at or above the major-gate tide threshold.">?</span></span>
+            <input id="gustMajorGatePenaltyKn" type="number" value="7" min="0" step="1">
+          </label>
+          <label><span class="labelText">Major gate tide (kn)<span class="helpIcon" tabindex="0" aria-label="Absolute tidal stream speed that makes a wind-over-tide situation count as a major tidal gate/springs case for gust no-go calculation." title="Absolute tidal stream speed that makes a wind-over-tide situation count as a major tidal gate/springs case for gust no-go calculation.">?</span></span>
+            <input id="gustMajorGateTideKn" type="number" value="3.0" min="0" step="0.1">
+          </label>
           <label><span class="labelText">Wind chill temp limit (C)<span class="helpIcon" tabindex="0" aria-label="Wind chill is only calculated below this air temperature. Above it, the displayed chill simply rounds the forecast air temperature." title="Wind chill is only calculated below this air temperature. Above it, the displayed chill simply rounds the forecast air temperature.">?</span></span>
             <input id="windChillTempLimitC" type="number" value="10" step="0.5">
           </label>
