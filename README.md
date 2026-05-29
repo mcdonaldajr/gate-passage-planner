@@ -63,7 +63,7 @@ Offline behaviour:
 - Weather is loaded from the stored cache for the selected location, even when it is older than the normal refresh interval.
 - Tide data is loaded from today's stored UKHO cache when available, otherwise from the latest stored tide cache for the station.
 - The status cards mark stale/offline data as stored offline data.
-- `Refresh weather`, `Refresh tides`, and `Refresh all` still need internet to obtain new provider data. If refresh cannot reach the provider but stored data exists, the app keeps using the stored data.
+- `Refresh weather`, `Refresh tides`, and `Refresh all` are the only actions that contact the weather/tide providers. If refresh cannot reach the provider but stored data exists, the app keeps using the stored data.
 
 Before going offline, open each tidal gate/location you may use and run `Refresh all` while connected.
 
@@ -170,8 +170,9 @@ systemctl --user restart gate-passage-planner
 
 - UKHO Discovery gives current plus 6 days of tidal events.
 - Open-Meteo forecast data can extend beyond the tide horizon, but the passage plan is limited by available tide data.
-- Weather cache defaults to 1 hour; manual refreshes are guarded for 10 minutes to avoid hammering providers.
-- Tide cache is once per day.
+- Weather cache defaults to 1 hour for stale/fresh status only; the app does not automatically fetch new provider data when a cache expires.
+- Tide cache is once per day for stale/fresh status only; the app does not automatically fetch UKHO data unless a refresh button is pressed.
+- Cache cleanup removes old local JSON files only. Defaults are 30 days for weather files and 14 days for tide files, adjustable with `WEATHER_CACHE_RETENTION_DAYS` and `TIDE_CACHE_RETENTION_DAYS`.
 - Location constants require latitude, longitude, flood/ebb set, spring/neap peak rates, and spring/neap flood/ebb timing offsets before a gate is selectable. Blank slack-duration fields are allowed and are treated as zero slack.
 - Wind comfort uses steady wind Beaufort thresholds plus a dynamic gust no-go overlay. The gust limit starts from a configurable base and deducts penalties for point of sail, exposed sea state inferred from combined forecast wave/swell height, and wind-over-tide conditions.
 

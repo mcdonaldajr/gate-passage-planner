@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { appendFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
 const root = process.cwd();
@@ -12,10 +12,12 @@ const userLocationConstantsPath = join(root, "data", "user-location-constants.js
 const appSettingsPath = join(root, "data", "app-settings.json");
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "127.0.0.1";
-const serverVersion = "0.1.15";
+const serverVersion = "0.1.16";
 const serverStartedAt = new Date().toISOString();
 const weatherTtlMs = Number(process.env.WEATHER_CACHE_HOURS || 1) * 60 * 60 * 1000;
 const weatherRefreshGuardMs = Number(process.env.WEATHER_REFRESH_GUARD_MINUTES || 10) * 60 * 1000;
+const weatherCacheRetentionMs = Number(process.env.WEATHER_CACHE_RETENTION_DAYS || 30) * 24 * 60 * 60 * 1000;
+const tideCacheRetentionMs = Number(process.env.TIDE_CACHE_RETENTION_DAYS || 14) * 24 * 60 * 60 * 1000;
 
 const defaultAppSettings = {
   selectedGate: "Cuan Sound",
@@ -186,6 +188,38 @@ async function readLatestCacheByPrefix(filePrefix) {
   return null;
 }
 
+function cacheTimestamp(payload, fallbackInfo) {
+  const fetchedAt = payload?.cache?.fetchedAt ? new Date(payload.cache.fetchedAt).getTime() : NaN;
+  if (Number.isFinite(fetchedAt)) return fetchedAt;
+  return fallbackInfo?.mtimeMs || 0;
+}
+
+async function pruneCacheFiles() {
+  try {
+    await mkdir(cacheDir, { recursive: true });
+    const files = await readdir(cacheDir);
+    const now = Date.now();
+    await Promise.all(files.map(async (file) => {
+      if (!file.endsWith(".json")) return;
+      const path = join(cacheDir, file);
+      const info = await stat(path).catch(() => null);
+      if (!info) return;
+      const payload = await readCache(path);
+      const timestamp = cacheTimestamp(payload, info);
+      const maxAge = file.startsWith("weather-")
+        ? weatherCacheRetentionMs
+        : file.startsWith("tides-")
+          ? tideCacheRetentionMs
+          : null;
+      if (maxAge && now - timestamp > maxAge) {
+        await unlink(path).catch(() => {});
+      }
+    }));
+  } catch (error) {
+    console.warn(`${new Date().toISOString()} [cache-prune] ${error.message}`);
+  }
+}
+
 async function readAppSettings() {
   return {
     ...defaultAppSettings,
@@ -230,12 +264,20 @@ async function fetchWeather(url, res) {
         refreshAfter: new Date(fetchedAtMs + weatherRefreshGuardMs).toISOString()
     }));
   }
-  if (cached && !manualRefresh && ageMs < weatherRefreshGuardMs && ageMs <= weatherTtlMs) {
-    return json(res, 200, withCacheStatus(cached, {
-      hit: true,
-      manualRefresh,
-      refreshAfter: new Date(fetchedAtMs + weatherRefreshGuardMs).toISOString()
-    }));
+  if (!manualRefresh) {
+    if (latestCached) {
+      return json(res, 200, withCacheStatus(latestCached, {
+        hit: true,
+        manualRefresh,
+        stale: true,
+        offlineFallback: true,
+        fallbackReason: "Using latest stored weather data; press Refresh Weather to fetch from the web",
+        refreshAfter: latestCached.cache?.refreshAfter || latestCached.cache?.fetchedAt || null
+      }));
+    }
+    return json(res, 404, {
+      error: "No stored weather data is available for this location. Press Refresh Weather when connected to the internet."
+    });
   }
 
   const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
@@ -295,10 +337,11 @@ async function fetchWeather(url, res) {
       hit: false,
       fetchedAt: new Date().toISOString(),
       refreshAfter: new Date(Date.now() + weatherRefreshGuardMs).toISOString(),
-      policy: `${Math.round(weatherRefreshGuardMs / 60000)} minute manual-refresh guard; ${weatherTtlMs / 3600000} hour automatic cache`
+      policy: `${weatherTtlMs / 3600000} hour freshness marker; provider fetch only on manual refresh`
     }
   };
   await writeCache(cachePath, payload);
+  pruneCacheFiles();
   json(res, 200, payload);
 }
 
@@ -320,8 +363,14 @@ async function fetchTides(url, res) {
       hit: true,
       stale: true,
       offlineFallback: true,
-      fallbackReason: "Using latest stored tide data"
+      fallbackReason: "Using latest stored tide data; press Refresh Tides to fetch from the web"
     }));
+  }
+
+  if (!manualRefresh) {
+    return json(res, 404, {
+      error: "No stored tide data is available. Press Refresh Tides when connected to the internet."
+    });
   }
 
   const apiKey = process.env.UKHO_API_KEY || appSettings.ukhoApiKey;
@@ -357,10 +406,11 @@ async function fetchTides(url, res) {
             hit: false,
             fetchedAt: new Date().toISOString(),
             refreshAfter: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            policy: "once per day tide cache"
+            policy: "once per day freshness marker; provider fetch only on manual refresh"
           }
         };
         await writeCache(cachePath, payload);
+        pruneCacheFiles();
         return json(res, 200, payload);
       }
       lastError = `${response.status} ${response.statusText}`;
@@ -470,6 +520,8 @@ const server = createServer(async (req, res) => {
     json(res, 500, { error: error.message });
   }
 });
+
+pruneCacheFiles();
 
 server.listen(port, host, () => {
   console.log(`Passage planner running at http://${host}:${port}`);
