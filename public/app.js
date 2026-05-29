@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.14";
+const webVersion = "0.1.15";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -382,6 +382,7 @@ const crewProfiles = [
     key: "family",
     label: "Family with young children",
     windBftOffset: -1,
+    gustBaseLimitOffsetKn: -5,
     waveMultiplier: 0.7,
     strongFoulRatio: 0.6,
     hobbyMultiplier: 1.45
@@ -390,6 +391,7 @@ const crewProfiles = [
     key: "competent",
     label: "Competent Crew",
     windBftOffset: 0,
+    gustBaseLimitOffsetKn: 0,
     waveMultiplier: 1,
     strongFoulRatio: null,
     hobbyMultiplier: null
@@ -398,6 +400,7 @@ const crewProfiles = [
     key: "racing",
     label: "Racing Crew",
     windBftOffset: 1,
+    gustBaseLimitOffsetKn: 5,
     waveMultiplier: 1.3,
     strongFoulRatio: 0.25,
     hobbyMultiplier: 1.15
@@ -545,6 +548,7 @@ function crewComfortSettings(profileKey = "competent") {
     offwindStrenuousBft: applyWind(base.offwindStrenuousBft),
     offwindDangerousBft: applyWind(base.offwindDangerousBft),
     strongFoulRatio: profile.strongFoulRatio ?? base.strongFoulRatio,
+    gustBaseLimitKn: Math.max(0, base.gustBaseLimitKn + profile.gustBaseLimitOffsetKn),
     beatingStrenuousWaveM: base.beatingStrenuousWaveM * profile.waveMultiplier,
     beatingDangerousWaveM: base.beatingDangerousWaveM * profile.waveMultiplier,
     offwindStrenuousWaveM: base.offwindStrenuousWaveM * profile.waveMultiplier,
