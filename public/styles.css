@@ -224,16 +224,11 @@ select {
 }
 
 .directionReadout {
-  display: grid;
-  align-content: start;
-  gap: 6px;
   min-width: 0;
-  color: var(--muted);
-  font-size: 13px;
 }
 
-.directionReadout strong {
-  min-height: 31px;
+.directionReadout output {
+  min-height: 30px;
   display: flex;
   align-items: center;
   border: 1px solid var(--line);
