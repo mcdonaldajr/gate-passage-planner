@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.13";
+const webVersion = "0.1.14";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -898,7 +898,12 @@ function minutesToDuration(totalMinutes) {
   const abs = Math.abs(Math.round(totalMinutes));
   const hours = Math.floor(abs / 60);
   const minutes = abs % 60;
-  return `${sign}${hours}:${String(minutes).padStart(2, "0")}:00`;
+  return `${sign}${hours}:${String(minutes).padStart(2, "0")}`;
+}
+
+function displayDuration(value) {
+  if (value === null || value === undefined || value === "") return "";
+  return minutesToDuration(durationToMinutes(String(value)));
 }
 
 function addMinutesToTime(value, minutes) {
@@ -1869,7 +1874,8 @@ function renderLocationConstantsTable() {
           : "";
         return `<td>${link}</td>`;
       }
-      const value = location[column.key];
+      const rawValue = location[column.key];
+      const value = column.type === "duration" ? displayDuration(rawValue) : rawValue;
       return `<td><input value="${escapeHtml(String(value ?? ""))}" data-location="${escapeHtml(location.location)}" data-key="${column.key}"></td>`;
     }).join("");
     return `<tr>${cells}</tr>`;
@@ -2047,7 +2053,7 @@ function syncLocationConstantsFromTable() {
     for (const column of locationConstantColumns) {
       if (column.key === "location" || column.type === "link" || column.type === "actions") continue;
       if (Object.prototype.hasOwnProperty.call(values, column.key)) {
-        updated[name][column.key] = values[column.key];
+        updated[name][column.key] = column.type === "duration" ? displayDuration(values[column.key]) : values[column.key];
       }
     }
     updated[name].location = name;
