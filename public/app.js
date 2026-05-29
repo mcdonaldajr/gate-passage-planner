@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.6";
+const webVersion = "0.1.8";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -327,7 +327,6 @@ const timeColumns = [
 ];
 
 const editableTideColumns = [
-  "Local Time",
   "HW Time (UTC)",
   "HW Height (m)",
   "Range (m)",
@@ -880,9 +879,10 @@ function shiftDateString(value, minutes) {
 function shiftTideRowsToWeatherWindow(tidesArray, weatherArray) {
   if (!tidesArray?.length || !weatherArray?.length) return tidesArray;
   const headers = tidesArray[0];
-  const dateColumns = ["Local Time", "HW Time (UTC)", ...timeColumns];
+  const dateColumns = ["HW Time (UTC)", ...timeColumns];
   const firstWeather = parseTime(weatherArray[1]?.[0]);
-  const firstTide = parseTime(tidesArray[1]?.[headers.indexOf("Local Time")]);
+  const firstTideColumn = headers.includes("HW Time (UTC)") ? "HW Time (UTC)" : "Local Time";
+  const firstTide = parseTime(tidesArray[1]?.[headers.indexOf(firstTideColumn)]);
   if (Number.isNaN(firstWeather) || Number.isNaN(firstTide)) return tidesArray;
 
   const dayMs = 24 * 60 * 60 * 1000;
@@ -950,7 +950,7 @@ function tidesForGate(tidesArray, gateName) {
 function tideCalculationRowsFromEvents(eventRows, gateName) {
   const selected = locationConstants[gateName] || locationConstants["Cuan Sound"];
   const headers = [
-    "Local Time", "HW Time (UTC)", "HW Height (m)", "Range (m)", "% Spring",
+    "HW Time (UTC)", "HW Height (m)", "Range (m)", "% Spring",
     "Peak Flow (kn)", "Peak Flood Dir (deg)", "Peak Flood (Set)",
     "Flood Slack Starts", "Flood Commences", "Flood Slack Ends", "Peak Flood Time",
     "Peak Ebb Dir (deg)", "Peak Ebb (Set)", "Ebb Slack Starts", "Ebb Commences",
@@ -975,7 +975,6 @@ function tideCalculationRowsFromEvents(eventRows, gateName) {
     const peakFlow = Math.max(settingNumber("peakFlowMinimumKn"), Number.isFinite(locationPeakFlow) ? locationPeakFlow : settingNumber("peakFlowMinimumKn"));
 
     rows.push([
-      hwTime,
       hwTime,
       row[idx("Height (m)")],
       Number(row[idx("Range (m)")] || 0),
@@ -1199,6 +1198,23 @@ function limitWeatherRowsToTideWindow(weatherRows, tidesArray) {
   ];
 }
 
+function startOfTodayLondonMs(now = Date.now()) {
+  const parts = timeZoneParts(now, "Europe/London");
+  return londonWallTimeToUtcMs(`${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")} 00:00:00`);
+}
+
+function limitWeatherRowsToTodayOnward(weatherRows) {
+  if (!weatherRows?.length) return weatherRows;
+  const todayStart = startOfTodayLondonMs();
+  return [
+    weatherRows[0],
+    ...weatherRows.slice(1).filter((row) => {
+      const ms = parseTime(row[1] || row[0]);
+      return !Number.isNaN(ms) && ms >= todayStart;
+    })
+  ];
+}
+
 function formatHoursOld(fromIso) {
   const ms = fromIso ? new Date(fromIso).getTime() : Number.NaN;
   if (Number.isNaN(ms)) return "-";
@@ -1301,6 +1317,7 @@ function formatDisplayValue(value, format) {
   if (value === null || value === undefined || value === "") return "";
   const numeric = Number(value);
   if (format === "localTimeWithDay") return formatLocalTimeWithDay(value);
+  if (format === "ukLocalDateTime") return formatUtcStringAsLondonDateTime(value);
   if (format === "knots" && !Number.isNaN(numeric)) return numeric.toFixed(1);
   if (format === "beaufort" && !Number.isNaN(numeric)) return beaufortDecimal(numeric).toFixed(1);
   if (format === "meters" && !Number.isNaN(numeric)) return numeric.toFixed(2);
@@ -1321,7 +1338,14 @@ function formatLocalTimeWithDay(value) {
   return `${weekday} ${year}-${month}-${day}${timePart.replace("T", " ")}`;
 }
 
+function formatUtcStringAsLondonDateTime(value) {
+  const ms = parseTime(value);
+  if (Number.isNaN(ms)) return String(value);
+  return formatLondonDateTime(ms);
+}
+
 function tideColumnFormat(columnName) {
+  if (["Time (UT)", "HW Time (UTC)", "Flood Commences", "Ebb Commences"].includes(columnName)) return "ukLocalDateTime";
   if (columnName === "Peak Flow (kn)") return "knots";
   if (columnName === "Wind (kn)" || columnName === "Gust (kn)") return "knots";
   if (columnName === "Height (m)" || columnName === "HW Height (m)" || columnName === "LW Height (m)" || columnName === "Range (m)" || columnName === "Rise (m)" || columnName === "Wave (m)" || columnName === "Swell (m)") return "meters";
@@ -1397,11 +1421,12 @@ function renderReadOnlyTable(tableId, rows, columns) {
 
 function tableHeaderLabel(name) {
   if (name === "Local Time") return "Local Time (UK)";
+  if (name === "Time (UT)") return "Local Time (UK)";
   if (name === "UTC Time") return "UTC Time (UT)";
   if (name === "HW Time") return "HW Time (UT)";
-  if (name === "HW Time (UTC)") return "HW Time (UT)";
-  if (name === "Flood Commences") return "Flood Commences (UT)";
-  if (name === "Ebb Commences") return "Ebb Commences (UT)";
+  if (name === "HW Time (UTC)") return "HW Time (UK)";
+  if (name === "Flood Commences") return "Flood Commences (UK)";
+  if (name === "Ebb Commences") return "Ebb Commences (UK)";
   if (name === "Peak Flood Dir (deg)") return "Peak Flood Dir";
   if (name === "Peak Ebb Dir (deg)") return "Peak Ebb Dir";
   return name;
@@ -2052,7 +2077,7 @@ function recalculateCurrentPlan() {
     updateFreshness();
     return;
   }
-  const planWeatherRows = limitWeatherRowsToTideWindow(currentWeatherRows, currentTideRows);
+  const planWeatherRows = limitWeatherRowsToTodayOnward(limitWeatherRowsToTideWindow(currentWeatherRows, currentTideRows));
   const rows = interpolateTidalFlow(planWeatherRows, currentTideRows, settingsFromControls());
   currentPlanRows = rows;
   summarize(rows);
