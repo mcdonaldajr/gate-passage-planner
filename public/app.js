@@ -1,8 +1,8 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.5";
+const webVersion = "0.1.6";
 
 const selectedColumns = [
-  { label: "Local Time (UK)", source: "Local Time" },
+  { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
   { label: "Overall", source: "Overall" },
   { label: "Wind Bft", source: "Wind (kn)", format: "beaufort" },
   { label: "Gust Bft", source: "Gust (kn)", format: "beaufort" },
@@ -1300,6 +1300,7 @@ function summarize(rows) {
 function formatDisplayValue(value, format) {
   if (value === null || value === undefined || value === "") return "";
   const numeric = Number(value);
+  if (format === "localTimeWithDay") return formatLocalTimeWithDay(value);
   if (format === "knots" && !Number.isNaN(numeric)) return numeric.toFixed(1);
   if (format === "beaufort" && !Number.isNaN(numeric)) return beaufortDecimal(numeric).toFixed(1);
   if (format === "meters" && !Number.isNaN(numeric)) return numeric.toFixed(2);
@@ -1308,6 +1309,16 @@ function formatDisplayValue(value, format) {
   }
   if (format === "cardinal") return degreesToCardinal(value);
   return String(value);
+}
+
+function formatLocalTimeWithDay(value) {
+  const text = String(value);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})([ T]\d{2}:\d{2})/);
+  if (!match) return text;
+  const [, year, month, day, timePart] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(date);
+  return `${weekday} ${year}-${month}-${day}${timePart.replace("T", " ")}`;
 }
 
 function tideColumnFormat(columnName) {
@@ -1329,10 +1340,41 @@ function renderTable(rows) {
     const rating = row[headers.indexOf("Overall")];
     const cells = indexes.map((idx, columnIndex) => {
       const column = selectedColumns[columnIndex];
-      return `<td>${formatDisplayValue(row[idx], column.format)}</td>`;
+      const className = passageCellClass(column.source, row, headers);
+      return `<td${className ? ` class="${className}"` : ""}>${escapeHtml(formatDisplayValue(row[idx], column.format))}</td>`;
     }).join("");
     return `<tr data-rating="${rating}">${cells}</tr>`;
   }).join("");
+}
+
+function ratingSeverity(value) {
+  const rating = String(value || "");
+  if (rating.includes("Dangerous") || rating.includes("Set Back") || rating.includes("Strong Foul")) return "stop";
+  if (rating.includes("Strenuous") || rating.includes("Adverse") || rating.includes("Hobby-Horsing")) return "warn";
+  return "";
+}
+
+function passageCellClass(source, row, headers) {
+  const idx = (name) => headers.indexOf(name);
+  const value = (name) => {
+    const index = idx(name);
+    return index === -1 ? "" : row[index];
+  };
+  const overall = value("Overall");
+  if (overall !== "Uncomfortable" && overall !== "Unacceptable") return "";
+
+  const windSeverity = ratingSeverity(value("Wind Rating"));
+  const waveSeverity = ratingSeverity(value("Wave Rating"));
+  const tideSeverity = ratingSeverity(value("Tide Rating"));
+  const classFor = (severity) => severity === "stop" ? "causeStop" : severity === "warn" ? "causeWarn" : "";
+
+  if (source === "Overall") return "";
+  if (windSeverity && (source === "Wind (kn)" || source === "Wind Rating")) return classFor(windSeverity);
+  if (waveSeverity && (source === "Wave (m)" || source === "Swell (m)" || source === "Wave Rating")) return classFor(waveSeverity);
+  if (tideSeverity && ["Tide Rate (kn)", "Tide Dir (deg)", "Tide Status", "Rel: Boat-Tide", "SOG (OnCourse)"].includes(source)) {
+    return classFor(tideSeverity);
+  }
+  return "";
 }
 
 function renderReadOnlyTable(tableId, rows, columns) {

@@ -610,6 +610,18 @@ tr[data-rating="Unacceptable"] td:last-child {
   font-weight: inherit;
 }
 
+#planTable td.causeWarn {
+  background: #ffe599;
+  color: #3d2b00;
+  font-weight: 650;
+}
+
+#planTable td.causeStop {
+  background: #ea9999;
+  color: #fff;
+  font-weight: 700;
+}
+
 @media (max-width: 1366px) {
   .topbar {
     align-items: flex-start;
