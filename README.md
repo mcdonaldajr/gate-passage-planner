@@ -124,6 +124,69 @@ To stop the server:
 ./scripts/stop-passage-planner.sh
 ```
 
+## Install On Windows
+
+Install these first:
+
+- [Node.js LTS](https://nodejs.org/)
+- [Git for Windows](https://git-scm.com/download/win), unless you download the repository as a ZIP file
+
+Open PowerShell and run:
+
+```powershell
+git clone https://github.com/mcdonaldajr/gate-passage-planner.git
+cd gate-passage-planner
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-windows.ps1
+```
+
+Start the server:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-server-windows.ps1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:4173
+```
+
+To start the server and open the browser in one step, add `-OpenBrowser`.
+
+Stop the server:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop-server-windows.ps1
+```
+
+Check whether it is running:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\status-server-windows.ps1
+```
+
+To create desktop shortcuts for starting and stopping the server:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-windows.ps1 -CreateDesktopShortcuts
+```
+
+To create shortcuts that start the server in LAN mode, add `-LanShortcuts`.
+
+For iPad/LAN access from Windows, start in LAN mode:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-server-windows.ps1 -Lan
+```
+
+Then open the Windows machine's LAN address from the iPad, for example:
+
+```text
+http://192.168.1.23:4173
+```
+
+Windows Firewall may ask whether to allow Node.js on private networks. Allow it only on trusted private networks.
+
 ## UKHO API Key
 
 The tide download uses an ADMIRALTY UK Tidal API subscription key.
@@ -164,6 +227,16 @@ cd gate-passage-planner
 git pull
 ./scripts/install-lubuntu.sh
 systemctl --user restart gate-passage-planner
+```
+
+## Updating The App On Windows
+
+```powershell
+cd gate-passage-planner
+git pull
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install-windows.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\stop-server-windows.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\start-server-windows.ps1
 ```
 
 ## Notes On Data Limits
