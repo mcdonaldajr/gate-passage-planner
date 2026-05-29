@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.10";
+const webVersion = "0.1.11";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -1595,6 +1595,36 @@ function updateHourStepButtons() {
   next.disabled = select.selectedIndex < 0 || select.selectedIndex >= select.options.length - 1;
 }
 
+function directionLabel(degrees) {
+  const cardinal = degreesToCardinal(degrees);
+  return cardinal && cardinal !== "-" ? cardinal : `${Number(degrees).toFixed(0)}°`;
+}
+
+function isCourseAlignedWithTideDirection(courseDeg, tideDeg) {
+  if (!Number.isFinite(courseDeg) || !Number.isFinite(tideDeg)) return false;
+  return angularDifference(courseDeg, tideDeg) <= 45;
+}
+
+function updateCourseDirectionWarning() {
+  const control = $("courseControl");
+  const warning = $("courseWarning");
+  if (!control || !warning) return;
+  const location = locationConstants[$("gate").value];
+  const course = Number($("heading").value);
+  const flood = cardinalToDegrees(location?.floodSet);
+  const ebb = cardinalToDegrees(location?.ebbSet);
+  const floodDeg = Number(flood);
+  const ebbDeg = Number(ebb);
+  const hasDirections = Number.isFinite(floodDeg) && Number.isFinite(ebbDeg);
+  const aligned = hasDirections
+    && (isCourseAlignedWithTideDirection(course, floodDeg) || isCourseAlignedWithTideDirection(course, ebbDeg));
+
+  control.classList.toggle("courseMismatch", hasDirections && !aligned);
+  warning.textContent = hasDirections && !aligned
+    ? `Course ${directionLabel(course)} does not match ${location.floodSet}/${location.ebbSet} tide directions.`
+    : "";
+}
+
 function stopHourRepeat() {
   if (hourRepeatDelayTimer) clearTimeout(hourRepeatDelayTimer);
   if (hourRepeatTimer) clearInterval(hourRepeatTimer);
@@ -2165,6 +2195,7 @@ function deleteLocation(name) {
 }
 
 function recalculateCurrentPlan() {
+  updateCourseDirectionWarning();
   if (!currentWeatherRows || !currentTideRows || currentTideRows.length < 2) {
     currentPlanRows = null;
     updateFreshness();
@@ -2358,10 +2389,12 @@ async function loadStoredData() {
 
 $("gate").addEventListener("change", () => {
   savePlannerSelection();
+  updateCourseDirectionWarning();
   loadStoredData();
 });
 $("heading").addEventListener("change", () => {
   savePlannerSelection();
+  updateCourseDirectionWarning();
   recalculateCurrentPlan();
 });
 $("crewCapability").addEventListener("change", () => {
@@ -2516,6 +2549,7 @@ async function initializeApp() {
   }
   renderReadOnlyTable("beaufortTable", beaufortRows(), ["Force", "Description", "Knots", "m/s"]);
   renderComfortConstantsTable();
+  updateCourseDirectionWarning();
   await loadStoredData();
   renderAbout();
 }
