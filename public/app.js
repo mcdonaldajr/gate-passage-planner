@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const webVersion = "0.1.11";
+const webVersion = "0.1.13";
 
 const selectedColumns = [
   { label: "Local Time (UK)", source: "Local Time", format: "localTimeWithDay" },
@@ -850,13 +850,9 @@ function formatLocalDateTime(value) {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("en-GB", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  const pad = (item) => String(item).padStart(2, "0");
+  const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(date);
+  return `${weekday} ${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function timeZoneOffsetMs(ms, timeZone = "Europe/London") {
@@ -1305,10 +1301,10 @@ function renderFreshnessCard(id, meta, label) {
   const expires = meta.refreshAfter ? new Date(meta.refreshAfter) : null;
   const expired = expires ? Date.now() >= expires.getTime() : false;
   card.dataset.expired = String(expired);
-  card.querySelector("strong").textContent = `${label}: ${fetched.toLocaleString()}`;
+  card.querySelector("strong").textContent = `${label}: ${formatLocalDateTime(fetched.toISOString())}`;
   const prefix = meta.offlineFallback || meta.stale ? "stored offline data; " : "";
   card.querySelector("small").textContent = expires
-    ? `${prefix}${formatHoursOld(meta.fetchedAt)}; ${expired ? "refresh due" : `next refresh ${expires.toLocaleString()}`}`
+    ? `${prefix}${formatHoursOld(meta.fetchedAt)}; ${expired ? "refresh due" : `next refresh ${formatLocalDateTime(expires.toISOString())}`}`
     : `${prefix}${formatHoursOld(meta.fetchedAt)}`;
 }
 
@@ -1409,13 +1405,18 @@ function formatLocalTimeWithDay(value) {
   return `${weekday} ${year}-${month}-${day}${timePart.replace("T", " ")}`;
 }
 
+function displayPlanLocalTime(value) {
+  return formatLocalTimeWithDay(value);
+}
+
 function formatUtcStringAsLondonDateTime(value) {
   const ms = parseTime(value);
   if (Number.isNaN(ms)) return String(value);
-  return formatLondonDateTime(ms);
+  return formatLocalTimeWithDay(formatLondonDateTime(ms));
 }
 
 function tideColumnFormat(columnName) {
+  if (columnName === "Local Time") return "localTimeWithDay";
   if (["Time (UT)", "HW Time (UTC)", "Flood Commences", "Ebb Commences"].includes(columnName)) return "ukLocalDateTime";
   if (columnName === "Peak Flow (kn)") return "knots";
   if (columnName === "Wind (kn)" || columnName === "Gust (kn)") return "knots";
@@ -1565,7 +1566,7 @@ function renderHourOptions(rows) {
   const previous = select.value;
   select.innerHTML = rows.slice(1).map((row, index) => {
     const value = String(row[0]);
-    const label = value.slice(0, 16);
+    const label = displayPlanLocalTime(value);
     return `<option value="${escapeHtml(value)}"${previous === value || (!previous && index === 0) ? " selected" : ""}>${escapeHtml(label)}</option>`;
   }).join("");
 }
@@ -1705,7 +1706,7 @@ function renderHourVisual() {
   `;
 
   overall.dataset.rating = overallRatingValue;
-  overall.textContent = `${row[0]} - ${overallRatingValue}`;
+  overall.textContent = `${displayPlanLocalTime(row[0])} - ${overallRatingValue}`;
 
   const cardData = [
     { name: "Boat", value: `${degreesToCardinal(settings.hdg)} ${settings.yachtSpeed.toFixed(1)} kn`, note: `Point of sail: ${row[idx("Point of Sail")]}`, color: "#17212b" },
